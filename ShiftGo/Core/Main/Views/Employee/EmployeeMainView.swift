@@ -95,7 +95,6 @@ struct EmployeeMainView: View {
     }
 }
 
-// 獨立的日曆格子組件，專門處理觸摸事件
 struct CalendarDayView: View {
     let date: YearMonthDay
     let selectedDate: Date
@@ -127,9 +126,6 @@ struct CalendarDayView: View {
             .highPriorityGesture(
                 TapGesture()
                     .onEnded { _ in
-                        // 添加觸覺反饋
-                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                        impactFeedback.impactOccurred()
 
                         onTap(date)
                     }
