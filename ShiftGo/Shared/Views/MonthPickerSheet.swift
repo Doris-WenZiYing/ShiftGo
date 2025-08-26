@@ -73,7 +73,7 @@ struct MonthPickerSheet: View {
 
                                 Picker("Month", selection: $selectedMonth) {
                                     ForEach(1...12, id: \.self) { month in
-                                        Text("\(month)月")
+                                        Text("\(month)")
                                             .font(.system(size: 22, weight: .medium))
                                             .tag(month)
                                     }
@@ -100,6 +100,13 @@ struct MonthPickerSheet: View {
                             .foregroundColor(.secondary)
 
                         HStack(spacing: 12) {
+                            quickSelectButton(title: "Last Month", action: {
+                                let calendar = Calendar.current
+                                let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+                                selectedYear = calendar.component(.year, from: lastMonth)
+                                selectedMonth = calendar.component(.month, from: lastMonth)
+                            })
+
                             quickSelectButton(title: "This Month", action: {
                                 let now = Date()
                                 selectedYear = Calendar.current.component(.year, from: now)
@@ -111,13 +118,6 @@ struct MonthPickerSheet: View {
                                 let nextMonth = calendar.date(byAdding: .month, value: 1, to: Date()) ?? Date()
                                 selectedYear = calendar.component(.year, from: nextMonth)
                                 selectedMonth = calendar.component(.month, from: nextMonth)
-                            })
-
-                            quickSelectButton(title: "Last Month", action: {
-                                let calendar = Calendar.current
-                                let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
-                                selectedYear = calendar.component(.year, from: lastMonth)
-                                selectedMonth = calendar.component(.month, from: lastMonth)
                             })
                         }
                     }

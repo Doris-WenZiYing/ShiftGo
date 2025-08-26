@@ -13,7 +13,7 @@ struct AppColors {
     // MARK: - 背景顏色
     struct Background {
         static func primary(_ colorScheme: ColorScheme) -> Color {
-            colorScheme == .dark ? .black : .white
+            colorScheme == .dark ? .black.opacity(0.8) : .white
         }
 
         static func secondary(_ colorScheme: ColorScheme) -> Color {
