@@ -1,0 +1,116 @@
+//
+//  EmployeeMainView.swift
+//  ShiftGo
+//
+//  Created by Doris Wen on 2025/8/25.
+//
+
+import SwiftUI
+
+struct EmployeeMainView: View {
+    @Environment(\.colorScheme) var colorScheme
+    @EnvironmentObject var themeManager: ThemeManager
+    @ObservedObject var controller: CalendarController = CalendarController(orientation: .vertical)
+
+    @State private var isPickerPresented = false
+    @State private var selectedYear = Calendar.current.component(.year, from: Date())
+    @State private var selectedMonth = Calendar.current.component(.month, from: Date())
+    @State private var selectedDate = Date()
+
+    var body: some View {
+        GeometryReader { reader in
+            VStack(alignment: .leading) {
+                // 月份年份按鈕
+                Button(action: {
+                    selectedMonth = controller.yearMonth.month
+                    selectedYear = controller.yearMonth.year
+                    isPickerPresented = true
+                }) {
+                    HStack(spacing: 8) {
+                        Text("\(controller.yearMonth.monthString)")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(AppColors.Text.header(colorScheme))
+
+                        Text("\(String(controller.yearMonth.year))")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.9))
+
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
+                    }
+                }
+                .padding(.leading, 10)
+
+                VStack(alignment: .leading, spacing: 0) {
+                    // 星期標題
+                    HStack(alignment: .center, spacing: 0) {
+                        ForEach(0..<7, id: \.self) { i in
+                            Text(DateFormatter().shortWeekdaySymbols[i])
+                                .font(.headline)
+                                .foregroundColor(AppColors.Text.primary(colorScheme))
+                                .frame(width: reader.size.width / 7)
+                        }
+                    }
+                    .padding(.top, 10)
+
+                    // 日曆視圖
+                    CalendarView(controller) { date in
+                        GeometryReader { geometry in
+                            ZStack {
+                                // 選中狀態的方形邊框
+                                if isSameDay(date: date.date ?? Date(), selectedDate: selectedDate) {
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(AppColors.Calendar.selectedBorder, lineWidth: 2)
+                                        .frame(width: geometry.size.width - 4, height: geometry.size.height - 4)
+                                }
+
+                                // 日期文字 - 對齊到上方正中間
+                                Text("\(date.day)")
+                                    .font(.system(size: 16, weight: isSameDay(date: date.date ?? Date(), selectedDate: selectedDate) ? .bold : .light))
+                                    .foregroundColor(isSameDay(date: date.date ?? Date(), selectedDate: selectedDate) ? AppColors.Calendar.selected : getColor(date))
+                                    .opacity(date.isFocusYearMonth == true ? 1 : 0.4)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                                    .padding(.top, 4) // 可選：添加一點上邊距避免文字貼到邊緣
+                            }
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                print("點擊日期: \(date.day), isFocusYearMonth: \(date.isFocusYearMonth)")
+                                if let actualDate = date.date {
+                                    selectedDate = actualDate
+                                    controller.selectDate(date)
+                                }
+                            }
+                        }
+                    }
+                    .sheet(isPresented: $isPickerPresented) {
+                        MonthPickerSheet(selectedYear: $selectedYear, selectedMonth: $selectedMonth, isPresented: $isPickerPresented, controller: controller)
+                    }
+                }
+            }
+            .background(AppColors.Background.primary(colorScheme))
+        }
+    }
+
+    private func isSameDay(date: Date, selectedDate: Date) -> Bool {
+        let calendar = Calendar.current
+        return calendar.isDate(date, inSameDayAs: selectedDate)
+    }
+
+    private func getColor(_ date: YearMonthDay) -> Color {
+        switch date.dayOfWeek {
+        case .sun:
+            return AppColors.Calendar.sunday
+        case .sat:
+            return AppColors.Calendar.saturday
+        default:
+            return AppColors.Calendar.dayText(colorScheme)
+        }
+    }
+}
+
+#Preview {
+    EmployeeMainView()
+        .environmentObject(ThemeManager())
+}
