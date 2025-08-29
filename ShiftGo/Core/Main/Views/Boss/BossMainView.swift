@@ -1,5 +1,5 @@
 //
-//  BossMainView.swift
+//  BossMainView.swift (Fixed Calendar Color Bars)
 //  ShiftGo
 //
 //  Created by Doris Wen on 2025/8/25.
@@ -242,12 +242,8 @@ struct BossMainView: View {
                 }
             }, component: { date in
                 GeometryReader { geometry in
-                    VStack(alignment: .leading, spacing: 2) {
-                        // Day number (same as EmployeeMainView)
+                    VStack(spacing: 2) {
                         Text("\(date.day)")
-                            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
-                            .padding(.top, 4)
-                            .padding(.bottom, -4)
                             .font(.system(
                                 size: 14,
                                 weight: focusDate == date ? .bold : .light,
@@ -255,9 +251,10 @@ struct BossMainView: View {
                             ))
                             .opacity(date.isFocusYearMonth == true ? 1 : 0.4)
                             .foregroundColor(date.dayColor(for: colorScheme))
+                            .frame(height: 20) // 固定Text高度
+                            .padding(.top, 4)
 
-                        // Vacation indicators - show as color bars like Apple Calendar
-                        // Fix: 手動查找匹配的 vacations，不依賴 YearMonthDay 的完全相等
+                        // Vacation indicators - 為彩色條留出空間
                         let matchingVacations = viewModel.employeeVacations.filter { vacation in
                             vacation.dates.contains { dateString in
                                 let components = dateString.split(separator: "-")
@@ -272,16 +269,28 @@ struct BossMainView: View {
                         }
 
                         if !matchingVacations.isEmpty {
-                            ForEach(Array(matchingVacations.enumerated()), id: \.offset) { index, vacation in
-                                Rectangle()
-                                    .fill(getEmployeeColor(vacation.employeeName))
-                                    .frame(width: geometry.size.width - 8, height: 6)
-                                    .cornerRadius(2)
-                                    .opacity(date.isFocusYearMonth == true ? 1 : 0.4)
+                            VStack(spacing: 2) {
+                                ForEach(Array(matchingVacations.prefix(3).enumerated()), id: \.offset) { index, vacation in
+                                    Rectangle()
+                                        .fill(getEmployeeColor(vacation.employeeName))
+                                        .frame(width: geometry.size.width - 8, height: 4)
+                                        .cornerRadius(2)
+                                        .opacity(date.isFocusYearMonth == true ? 1 : 0.4)
+                                }
+
+                                if matchingVacations.count > 3 {
+                                    Text("···")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundColor(.gray)
+                                        .opacity(date.isFocusYearMonth == true ? 1 : 0.4)
+                                }
                             }
+                            .padding(.top, 2)
                         }
+
+                        Spacer()
                     }
-                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
                     .background(
                         viewModel.selectedDate == date ? Color.gray.opacity(0.15) :
                         (focusDate == date ? Color.gray.opacity(0.15) : Color.clear)
@@ -471,9 +480,13 @@ struct BossMainView: View {
         }
     }
 
-    // MARK: - Helper Methods
+    // MARK: - Helper Methods (增強顏色對比)
     private func getEmployeeColor(_ employeeName: String) -> Color {
-        let colors: [Color] = [.blue, .orange, .green, .purple, .pink, .cyan, .yellow, .red]
+        let colors: [Color] = [
+            .blue, .orange, .green, .purple,
+            .pink, .red, .teal, .indigo,
+            .yellow, .cyan
+        ]
         let hash = abs(employeeName.hashValue)
         return colors[hash % colors.count]
     }
