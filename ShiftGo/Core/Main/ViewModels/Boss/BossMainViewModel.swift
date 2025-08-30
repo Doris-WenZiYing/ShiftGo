@@ -8,48 +8,6 @@
 import SwiftUI
 import Combine
 
-// MARK: - Models
-struct VacationSettings {
-    var targetMonth: String = ""
-    var targetYear: Int = Calendar.current.component(.year, from: Date())
-    var maxDaysPerMonth: Int = 8
-    var maxDaysPerWeek: Int = 2
-    var limitType: VacationLimitType = .monthly
-    var deadline: Date = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
-    var isPublished: Bool = false
-    var publishedAt: Date?
-}
-
-struct EmployeeVacation: Identifiable {
-    let id = UUID()
-    let employeeName: String
-    let employeeId: String
-    let dates: Set<String>
-    let submitDate: Date
-    let status: VacationRequestStatus
-    let note: String
-
-    enum VacationRequestStatus {
-        case pending
-        case approved
-        case rejected
-    }
-}
-
-enum VacationLimitType: String, CaseIterable {
-    case weekly = "週排休"
-    case monthly = "月排休"
-
-    var description: String {
-        switch self {
-        case .weekly:
-            return "以週為單位限制排休天數"
-        case .monthly:
-            return "以月為單位限制排休天數"
-        }
-    }
-}
-
 // MARK: - BossMainViewModel
 class BossMainViewModel: ObservableObject {
     // MARK: - Published Properties

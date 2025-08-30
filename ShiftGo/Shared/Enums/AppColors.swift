@@ -23,6 +23,10 @@ struct AppColors {
         static func tabBar(_ colorScheme: ColorScheme) -> Color {
             colorScheme == .dark ? .black : .white
         }
+
+        static func blackBg(_ colorScheme: ColorScheme) -> Color {
+            colorScheme == .dark ? .black : .white
+        }
     }
 
     // MARK: - 文字顏色

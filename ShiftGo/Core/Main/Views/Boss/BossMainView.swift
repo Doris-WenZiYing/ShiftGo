@@ -44,7 +44,7 @@ struct BossMainView: View {
                 VStack {
                     Spacer()
 
-                    if let selectedDate = viewModel.selectedDate,
+                    if (viewModel.selectedDate != nil),
                        !viewModel.selectedDateVacations.isEmpty {
                         selectedDateInfoSection()
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -231,7 +231,7 @@ struct BossMainView: View {
         }
     }
 
-    // MARK: - Calendar Section
+    // MARK: - Calendar Section (FIXED)
     private func calendarSection() -> some View {
         VStack(alignment: .leading, spacing: 0) {
             CalendarView(controller, header: { week in
@@ -242,7 +242,9 @@ struct BossMainView: View {
                 }
             }, component: { date in
                 GeometryReader { geometry in
+                    // 修復：重新設計cell的佈局結構
                     VStack(spacing: 2) {
+                        // Day number - 固定高度，不佔滿整個cell
                         Text("\(date.day)")
                             .font(.system(
                                 size: 14,
@@ -251,10 +253,10 @@ struct BossMainView: View {
                             ))
                             .opacity(date.isFocusYearMonth == true ? 1 : 0.4)
                             .foregroundColor(date.dayColor(for: colorScheme))
-                            .frame(height: 20) // 固定Text高度
+                            .frame(height: 20) // fixed Text height
                             .padding(.top, 4)
 
-                        // Vacation indicators - 為彩色條留出空間
+                        // Vacation indicators
                         let matchingVacations = viewModel.employeeVacations.filter { vacation in
                             vacation.dates.contains { dateString in
                                 let components = dateString.split(separator: "-")
@@ -278,6 +280,7 @@ struct BossMainView: View {
                                         .opacity(date.isFocusYearMonth == true ? 1 : 0.4)
                                 }
 
+                                // 如果有超過3個vacation，顯示省略號
                                 if matchingVacations.count > 3 {
                                     Text("···")
                                         .font(.system(size: 8, weight: .bold))
@@ -288,7 +291,7 @@ struct BossMainView: View {
                             .padding(.top, 2)
                         }
 
-                        Spacer()
+                        Spacer() // 讓內容靠上對齊
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
                     .background(
@@ -318,7 +321,7 @@ struct BossMainView: View {
                     .foregroundColor(.green)
 
                 if let selectedDate = viewModel.selectedDate {
-                    Text("\(selectedDate.year)年\(selectedDate.month)月\(selectedDate.day)日 排休詳情")
+                    Text("\(String(selectedDate.year))年\(selectedDate.month)月\(selectedDate.day)日 排休詳情")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(AppColors.Text.header(colorScheme))
                 }
@@ -348,10 +351,10 @@ struct BossMainView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(AppColors.Background.primary(colorScheme))
+                .fill(AppColors.Background.blackBg(colorScheme))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                        .stroke(Color.gray.opacity(0.4), lineWidth: 0.5)
                 )
         )
         .padding(.horizontal, 16)
