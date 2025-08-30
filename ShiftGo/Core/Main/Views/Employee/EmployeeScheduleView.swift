@@ -13,17 +13,10 @@ struct EmployeeScheduleView: View {
     @Binding var isPresented: Bool
     @ObservedObject var controller: CalendarController
 
-    @State private var selectedVacationDates: Set<YearMonthDay> = []
+    @StateObject private var viewModel = EmployeeMainViewModel()
     @State private var isPickerPresented = false
     @State private var selectedYear = Calendar.current.component(.year, from: Date())
     @State private var selectedMonth = Calendar.current.component(.month, from: Date())
-    @State private var isLoading = false
-    @State private var showingAlert = false
-    @State private var alertMessage = ""
-
-    // 排休限制
-    private let maxVacationDaysPerMonth = 8
-    private let maxVacationDaysPerWeek = 2
 
     var body: some View {
         NavigationView {
@@ -33,39 +26,58 @@ struct EmployeeScheduleView: View {
                         // Header Section
                         headerSection()
 
-                        // Stats Cards
-                        statsSection()
+                        // Status Section
+                        statusSection()
+
+                        // Stats Cards (only show if vacation is published)
+                        if viewModel.isVacationPublished {
+                            statsSection()
+                        }
 
                         // Month Selector
                         monthSelectorSection()
 
-                        // Calendar Section
-                        calendarSection()
+                        // Calendar Section (only show if vacation is published)
+                        if viewModel.isVacationPublished {
+                            calendarSection()
+                        }
 
-                        // Action Buttons
-                        actionButtonsSection()
+                        // Action Buttons (only show if vacation is published and no existing request)
+                        if viewModel.isVacationPublished && !viewModel.hasExistingRequest(for: controller.yearMonth.year, month: controller.yearMonth.month) {
+                            actionButtonsSection()
+                        }
+
+                        // Existing Request Info
+                        if viewModel.hasExistingRequest(for: controller.yearMonth.year, month: controller.yearMonth.month) {
+                            existingRequestSection()
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.bottom, 30)
                 }
                 .background(AppColors.Background.primary(colorScheme))
             }
-            .navigationTitle("排休設定")
+            .navigationTitle("排休申請")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
+                    Button("關閉") {
                         isPresented = false
                     }
                     .foregroundColor(AppColors.Text.header(colorScheme))
                 }
             }
         }
-        .alert("提示", isPresented: $showingAlert) {
-            Button("確定") { }
-        } message: {
-            Text(alertMessage)
+        .onAppear {
+            viewModel.loadData(for: controller.yearMonth.year, month: controller.yearMonth.month)
         }
+        .onChange(of: controller.yearMonth) { _, newYearMonth in
+            viewModel.loadData(for: newYearMonth.year, month: newYearMonth.month)
+        }
+        .overlay(
+            // Toast
+            toastOverlay()
+        )
     }
 
     // MARK: - Header Section
@@ -81,32 +93,68 @@ struct EmployeeScheduleView: View {
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(AppColors.Text.header(colorScheme))
 
-                    Text("選擇您希望的休假日期")
+                    Text(viewModel.isVacationPublished ? "選擇您希望的休假日期" : "等待主管開放排休")
                         .font(.system(size: 14))
                         .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
                 }
 
                 Spacer()
+
+                if viewModel.isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: AppColors.Calendar.saturday))
+                        .scaleEffect(0.8)
+                }
             }
         }
         .padding(.vertical, 12)
     }
 
+    // MARK: - Status Section
+    private func statusSection() -> some View {
+        let status = viewModel.getVacationStatus(for: controller.yearMonth.year, month: controller.yearMonth.month)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: status.icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(status.color)
+
+                Text("申請狀態：\(status.displayText)")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(status.color)
+
+                Spacer()
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(status.color.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(status.color.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+    }
+
     // MARK: - Stats Section
     private func statsSection() -> some View {
-        HStack(spacing: 12) {
-            // 月限制
+        let stats = viewModel.getVacationStats(for: controller.yearMonth.year, month: controller.yearMonth.month)
+
+        return HStack(spacing: 12) {
+            // 月上限
             statsCard(
                 title: "月上限",
-                value: "\(maxVacationDaysPerMonth)",
+                value: "\(stats.maxDays)",
                 color: AppColors.Calendar.saturday,
                 subtitle: "天/月"
             )
 
-            // 週限制
+            // 週上限
             statsCard(
                 title: "週上限",
-                value: "\(maxVacationDaysPerWeek)",
+                value: "\(stats.maxWeeklyDays)",
                 color: AppColors.Calendar.sunday,
                 subtitle: "天/週"
             )
@@ -114,7 +162,7 @@ struct EmployeeScheduleView: View {
             // 已選擇
             statsCard(
                 title: "已選擇",
-                value: "\(selectedVacationDates.count)",
+                value: "\(stats.selectedDays)",
                 color: .orange,
                 subtitle: "天"
             )
@@ -187,6 +235,9 @@ struct EmployeeScheduleView: View {
                         )
                 )
             }
+            .sheet(isPresented: $isPickerPresented) {
+                MonthPickerSheet(selectedYear: $selectedYear, selectedMonth: $selectedMonth, isPresented: $isPickerPresented, controller: controller)
+            }
         }
     }
 
@@ -198,7 +249,6 @@ struct EmployeeScheduleView: View {
                 .foregroundColor(AppColors.Text.header(colorScheme))
 
             VStack(spacing: 0) {
-                // 使用與 EmployeeMainView 相同的 CalendarView
                 CalendarView(controller, header: { week in
                     Text(week.shortString)
                         .font(.system(size: 12, weight: .medium))
@@ -207,7 +257,7 @@ struct EmployeeScheduleView: View {
                 }, component: { date in
                     Button(action: {
                         if date.isFocusYearMonth == true {
-                            toggleVacationDate(date)
+                            viewModel.toggleDateSelection(date)
                         }
                     }) {
                         ZStack {
@@ -218,10 +268,10 @@ struct EmployeeScheduleView: View {
 
                             VStack(spacing: 2) {
                                 Text("\(date.day)")
-                                    .font(.system(size: 14, weight: selectedVacationDates.contains(date) ? .bold : .medium))
+                                    .font(.system(size: 14, weight: viewModel.selectedVacationDates.contains(date) ? .bold : .medium))
                                     .foregroundColor(getDateTextColor(date))
 
-                                if selectedVacationDates.contains(date) {
+                                if viewModel.selectedVacationDates.contains(date) {
                                     Text("休")
                                         .font(.system(size: 8, weight: .bold))
                                         .foregroundColor(.white)
@@ -236,10 +286,7 @@ struct EmployeeScheduleView: View {
                     .buttonStyle(PlainButtonStyle())
                     .disabled(date.isFocusYearMonth == false)
                 })
-                .frame(minHeight: 300) // 給日曆一個最小高度
-                .sheet(isPresented: $isPickerPresented) {
-                    MonthPickerSheet(selectedYear: $selectedYear, selectedMonth: $selectedMonth, isPresented: $isPickerPresented, controller: controller)
-                }
+                .frame(minHeight: 300)
             }
             .background(
                 RoundedRectangle(cornerRadius: 12)
@@ -251,6 +298,17 @@ struct EmployeeScheduleView: View {
             )
             .padding(.horizontal, 8)
             .padding(.vertical, 12)
+
+            // Note input
+            VStack(alignment: .leading, spacing: 8) {
+                Text("備註（選填）")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppColors.Text.header(colorScheme))
+
+                TextField("請輸入排休原因...", text: $viewModel.vacationNote, axis: .vertical)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .lineLimit(3, reservesSpace: true)
+            }
         }
     }
 
@@ -260,7 +318,7 @@ struct EmployeeScheduleView: View {
             HStack(spacing: 12) {
                 // 清除按鈕
                 Button("清除全部") {
-                    selectedVacationDates.removeAll()
+                    viewModel.clearSelectedDates()
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -272,25 +330,128 @@ struct EmployeeScheduleView: View {
                 .font(.system(size: 16, weight: .semibold))
 
                 // 提交按鈕
-                Button(isLoading ? "提交中..." : "提交排休") {
-                    submitVacationRequest()
+                Button(viewModel.isLoading ? "提交中..." : "提交排休") {
+                    viewModel.submitVacationRequest(for: controller.yearMonth.year, month: controller.yearMonth.month)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(selectedVacationDates.isEmpty ? Color.gray.opacity(0.3) : AppColors.Calendar.saturday)
+                        .fill(viewModel.canSubmitVacation(for: controller.yearMonth.year, month: controller.yearMonth.month) ? AppColors.Calendar.saturday : Color.gray.opacity(0.3))
                 )
                 .foregroundColor(.white)
                 .font(.system(size: 16, weight: .semibold))
-                .disabled(selectedVacationDates.isEmpty || isLoading)
+                .disabled(!viewModel.canSubmitVacation(for: controller.yearMonth.year, month: controller.yearMonth.month) || viewModel.isLoading)
             }
         }
     }
 
+    // MARK: - Existing Request Section
+    private func existingRequestSection() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("已提交的申請")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(AppColors.Text.header(colorScheme))
+
+            ForEach(viewModel.myVacationRequests.filter { vacation in
+                vacation.dates.contains { dateString in
+                    let components = dateString.split(separator: "-")
+                    guard components.count == 3,
+                          let year = Int(components[0]),
+                          let month = Int(components[1]) else {
+                        return false
+                    }
+                    return year == controller.yearMonth.year && month == controller.yearMonth.month
+                }
+            }, id: \.id) { vacation in
+                existingRequestCard(vacation)
+            }
+        }
+    }
+
+    private func existingRequestCard(_ vacation: EmployeeVacation) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("申請日期")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppColors.Text.header(colorScheme))
+
+                Spacer()
+
+                Text(vacation.status.displayText)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(vacation.status.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(vacation.status.color.opacity(0.1))
+                    )
+            }
+
+            // 顯示申請的日期
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
+                ForEach(Array(vacation.dates.sorted()), id: \.self) { dateString in
+                    if let date = parseDateString(dateString) {
+                        Text("\(date.day)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Circle().fill(vacation.status.color))
+                    }
+                }
+            }
+
+            if !vacation.note.isEmpty {
+                Text("備註：\(vacation.note)")
+                    .font(.system(size: 12))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(AppColors.Background.primary(colorScheme))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(vacation.status.color.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+
+    // MARK: - Toast Overlay
+    private func toastOverlay() -> some View {
+        VStack {
+            if viewModel.showingToast {
+                VStack {
+                    Spacer()
+
+                    HStack(spacing: 12) {
+                        Image(systemName: viewModel.toastType.icon)
+                            .foregroundColor(viewModel.toastType.color)
+
+                        Text(viewModel.toastMessage)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(AppColors.Text.header(colorScheme))
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(16)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 100)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
     // MARK: - Helper Methods
     private func getDateBackgroundColor(_ date: YearMonthDay) -> Color {
-        if selectedVacationDates.contains(date) {
+        if viewModel.selectedVacationDates.contains(date) {
             return .orange.opacity(0.8)
         } else if date.isFocusYearMonth == true {
             return AppColors.Background.primary(colorScheme).opacity(0.1)
@@ -300,7 +461,7 @@ struct EmployeeScheduleView: View {
     }
 
     private func getDateTextColor(_ date: YearMonthDay) -> Color {
-        if selectedVacationDates.contains(date) {
+        if viewModel.selectedVacationDates.contains(date) {
             return .white
         } else if date.isFocusYearMonth == false {
             return AppColors.Text.header(colorScheme).opacity(0.3)
@@ -316,38 +477,15 @@ struct EmployeeScheduleView: View {
         }
     }
 
-    private func toggleVacationDate(_ date: YearMonthDay) {
-        if selectedVacationDates.contains(date) {
-            selectedVacationDates.remove(date)
-        } else {
-            // 檢查是否超過月限制
-            if selectedVacationDates.count >= maxVacationDaysPerMonth {
-                alertMessage = "每月最多只能申請 \(maxVacationDaysPerMonth) 天排休"
-                showingAlert = true
-                return
-            }
-
-            // 檢查週限制 (這裡簡化處理，實際應該檢查同一週的日期)
-            selectedVacationDates.insert(date)
+    private func parseDateString(_ dateString: String) -> YearMonthDay? {
+        let components = dateString.split(separator: "-")
+        guard components.count == 3,
+              let year = Int(components[0]),
+              let month = Int(components[1]),
+              let day = Int(components[2]) else {
+            return nil
         }
-    }
-
-    private func submitVacationRequest() {
-        guard !selectedVacationDates.isEmpty else { return }
-
-        isLoading = true
-
-        // 模擬提交請求
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isLoading = false
-            alertMessage = "排休申請已提交，等待主管審核"
-            showingAlert = true
-
-            // 提交成功後關閉畫面
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                isPresented = false
-            }
-        }
+        return YearMonthDay(year: year, month: month, day: day)
     }
 }
 

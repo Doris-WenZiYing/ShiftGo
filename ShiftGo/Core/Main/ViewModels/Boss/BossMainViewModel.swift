@@ -22,6 +22,9 @@ class BossMainViewModel: ObservableObject {
     @Published var selectedDate: YearMonthDay?
     @Published var selectedDateVacations: [EmployeeVacation] = []
 
+    // Firebase service
+    private let firebaseService = FirebaseService.shared
+
     // Computed Properties
     var isVacationPublished: Bool { vacationSettings.isPublished }
     var employeeVacationCount: Int { employeeVacations.count }
@@ -67,35 +70,98 @@ class BossMainViewModel: ObservableObject {
     }
 
     init() {
-        loadMockData()
+        // 載入當前月份資料
+        let now = Date()
+        let currentYear = Calendar.current.component(.year, from: now)
+        let currentMonth = Calendar.current.component(.month, from: now)
+
+        Task {
+            await loadData(for: currentYear, month: currentMonth)
+        }
     }
 
     // MARK: - Public Methods
 
-    /// 發佈排休設定
+    /// 載入特定月份的資料
+    @MainActor
+    func loadData(for year: Int, month: Int) {
+        Task {
+            await loadVacationData(year: year, month: month)
+        }
+    }
+
+    /// 發佈排休設定 (修復版)
+    @MainActor
     func publishVacationSettings(_ settings: VacationSettings) {
+        print("🎯 [Boss] Starting to publish vacation settings")
+        print("   - Original settings isPublished: \(settings.isPublished)")
+
         isLoading = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            self.vacationSettings = settings
-            self.vacationSettings.isPublished = true
-            self.vacationSettings.publishedAt = Date()
+        Task {
+            do {
+                // 🔥 關鍵修復：確保設置為已發布狀態
+                var publishedSettings = settings
+                publishedSettings.isPublished = true
+                publishedSettings.publishedAt = Date()
 
-            self.isLoading = false
-            self.showToast(message: "排休已發佈！員工現在可以申請 \(settings.targetYear) 年 \(settings.targetMonth) 月的排休", type: .success)
+                print("🔄 [Boss] Modified settings for publishing:")
+                print("   - isPublished: \(publishedSettings.isPublished)")
+                print("   - publishedAt: \(publishedSettings.publishedAt?.description ?? "nil")")
+
+                try await firebaseService.publishVacationSettings(publishedSettings)
+
+                await MainActor.run {
+                    // 更新本地狀態
+                    vacationSettings = publishedSettings
+                    isLoading = false
+                    showToast(message: "排休已發佈！員工現在可以申請 \(publishedSettings.targetYear) 年 \(publishedSettings.targetMonth) 的排休", type: .success)
+                }
+
+                // 立即重新載入資料確認狀態
+                let monthNumber = getMonthNumber(from: publishedSettings.targetMonth)
+                await loadVacationData(year: publishedSettings.targetYear, month: monthNumber)
+
+            } catch {
+                print("❌ [Boss] Publish failed: \(error)")
+                await MainActor.run {
+                    isLoading = false
+                    showToast(message: "發佈失敗：\(error.localizedDescription)", type: .error)
+                }
+            }
         }
     }
 
     /// 取消發佈排休
+    @MainActor
     func unpublishVacation() {
+        print("🚫 [Boss] Starting to unpublish vacation")
         isLoading = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.vacationSettings.isPublished = false
-            self.vacationSettings.publishedAt = nil
+        Task {
+            do {
+                let currentYear = vacationSettings.targetYear
+                let monthNumber = getMonthNumber(from: vacationSettings.targetMonth)
 
-            self.isLoading = false
-            self.showToast(message: "排休發佈已取消", type: .info)
+                try await firebaseService.unpublishVacationSettings(year: currentYear, month: monthNumber)
+
+                await MainActor.run {
+                    vacationSettings.isPublished = false
+                    vacationSettings.publishedAt = nil
+                    isLoading = false
+                    showToast(message: "排休發佈已取消", type: .info)
+                }
+
+                // 重新載入資料確認狀態
+                await loadVacationData(year: currentYear, month: monthNumber)
+
+            } catch {
+                print("❌ [Boss] Unpublish failed: \(error)")
+                await MainActor.run {
+                    isLoading = false
+                    showToast(message: "取消發佈失敗：\(error.localizedDescription)", type: .error)
+                }
+            }
         }
     }
 
@@ -111,46 +177,98 @@ class BossMainViewModel: ObservableObject {
     }
 
     /// 核准員工排休
+    @MainActor
     func approveVacation(_ vacationId: UUID) {
         if let index = employeeVacations.firstIndex(where: { $0.id == vacationId }) {
-            // 創建更新後的排休申請
-            let updatedVacation = EmployeeVacation(
-                employeeName: employeeVacations[index].employeeName,
-                employeeId: employeeVacations[index].employeeId,
-                dates: employeeVacations[index].dates,
-                submitDate: employeeVacations[index].submitDate,
-                status: .approved,
-                note: employeeVacations[index].note
-            )
-            employeeVacations[index] = updatedVacation
+            let vacation = employeeVacations[index]
 
-            // 更新選中日期的資料
-            if let selectedDate = selectedDate {
-                selectedDateVacations = vacationsByDate[selectedDate] ?? []
+            Task {
+                do {
+                    // 從日期字串中獲取年月
+                    if let firstDate = vacation.dates.first,
+                       let (year, month) = getYearMonthFromDateString(firstDate) {
+
+                        try await firebaseService.updateVacationRequestStatus(
+                            employeeId: vacation.employeeId,
+                            year: year,
+                            month: month,
+                            status: .approved
+                        )
+
+                        await MainActor.run {
+                            // 更新本地資料
+                            let updatedVacation = EmployeeVacation(
+                                employeeName: vacation.employeeName,
+                                employeeId: vacation.employeeId,
+                                dates: vacation.dates,
+                                submitDate: vacation.submitDate,
+                                status: .approved,
+                                note: vacation.note
+                            )
+                            employeeVacations[index] = updatedVacation
+
+                            // 更新選中日期的資料
+                            if let selectedDate = selectedDate {
+                                selectedDateVacations = vacationsByDate[selectedDate] ?? []
+                            }
+
+                            showToast(message: "已核准 \(vacation.employeeName) 的排休申請", type: .success)
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        showToast(message: "核准失敗：\(error.localizedDescription)", type: .error)
+                    }
+                }
             }
-
-            showToast(message: "已核准 \(updatedVacation.employeeName) 的排休申請", type: .success)
         }
     }
 
     /// 拒絕員工排休
+    @MainActor
     func rejectVacation(_ vacationId: UUID) {
         if let index = employeeVacations.firstIndex(where: { $0.id == vacationId }) {
-            let updatedVacation = EmployeeVacation(
-                employeeName: employeeVacations[index].employeeName,
-                employeeId: employeeVacations[index].employeeId,
-                dates: employeeVacations[index].dates,
-                submitDate: employeeVacations[index].submitDate,
-                status: .rejected,
-                note: employeeVacations[index].note
-            )
-            employeeVacations[index] = updatedVacation
+            let vacation = employeeVacations[index]
 
-            if let selectedDate = selectedDate {
-                selectedDateVacations = vacationsByDate[selectedDate] ?? []
+            Task {
+                do {
+                    // 從日期字串中獲取年月
+                    if let firstDate = vacation.dates.first,
+                       let (year, month) = getYearMonthFromDateString(firstDate) {
+
+                        try await firebaseService.updateVacationRequestStatus(
+                            employeeId: vacation.employeeId,
+                            year: year,
+                            month: month,
+                            status: .rejected
+                        )
+
+                        await MainActor.run {
+                            // 更新本地資料
+                            let updatedVacation = EmployeeVacation(
+                                employeeName: vacation.employeeName,
+                                employeeId: vacation.employeeId,
+                                dates: vacation.dates,
+                                submitDate: vacation.submitDate,
+                                status: .rejected,
+                                note: vacation.note
+                            )
+                            employeeVacations[index] = updatedVacation
+
+                            // 更新選中日期的資料
+                            if let selectedDate = selectedDate {
+                                selectedDateVacations = vacationsByDate[selectedDate] ?? []
+                            }
+
+                            showToast(message: "已拒絕 \(vacation.employeeName) 的排休申請", type: .error)
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        showToast(message: "拒絕失敗：\(error.localizedDescription)", type: .error)
+                    }
+                }
             }
-
-            showToast(message: "已拒絕 \(updatedVacation.employeeName) 的排休申請", type: .error)
         }
     }
 
@@ -179,6 +297,62 @@ class BossMainViewModel: ObservableObject {
 
     // MARK: - Private Methods
 
+    /// 載入排休相關資料
+    private func loadVacationData(year: Int, month: Int) async {
+        await MainActor.run {
+            isLoading = true
+        }
+
+        async let settingsTask = loadVacationSettings(year: year, month: month)
+        async let requestsTask = loadVacationRequests(year: year, month: month)
+
+        await settingsTask
+        await requestsTask
+
+        await MainActor.run {
+            isLoading = false
+            print("✅ [Boss] Data loaded - Published: \(vacationSettings.isPublished)")
+        }
+    }
+
+    /// 載入排休設定
+    private func loadVacationSettings(year: Int, month: Int) async {
+        do {
+            if let settings = try await firebaseService.getVacationSettings(year: year, month: month) {
+                await MainActor.run {
+                    vacationSettings = settings
+                    print("✅ [Boss] Loaded settings - isPublished: \(settings.isPublished)")
+                }
+            } else {
+                await MainActor.run {
+                    vacationSettings = VacationSettings.defaultSettings(for: year, month: month)
+                    print("⚠️ [Boss] No settings found, using defaults")
+                }
+            }
+        } catch {
+            await MainActor.run {
+                vacationSettings = VacationSettings.defaultSettings(for: year, month: month)
+                print("❌ [Boss] Failed to load vacation settings: \(error)")
+            }
+        }
+    }
+
+    /// 載入排休申請
+    private func loadVacationRequests(year: Int, month: Int) async {
+        do {
+            let requests = try await firebaseService.getVacationRequests(year: year, month: month)
+            await MainActor.run {
+                employeeVacations = requests
+                print("✅ [Boss] Loaded \(requests.count) vacation requests")
+            }
+        } catch {
+            await MainActor.run {
+                employeeVacations = []
+                print("❌ [Boss] Failed to load vacation requests: \(error)")
+            }
+        }
+    }
+
     private func showToast(message: String, type: ToastType) {
         toastMessage = message
         toastType = type
@@ -201,68 +375,22 @@ class BossMainViewModel: ObservableObject {
         return YearMonthDay(year: year, month: month, day: day)
     }
 
-    private func loadMockData() {
-        // 獲取當前月份來設定假資料
-        let now = Date()
-        let currentYear = Calendar.current.component(.year, from: now)
-        let currentMonth = Calendar.current.component(.month, from: now)
-
-        // 確保假資料會顯示，先設定排休已發佈
-        vacationSettings.isPublished = true
-        vacationSettings.publishedAt = Date()
-
-        // 模擬已有的員工排休申請 - 使用當前月份
-        let mockVacations = [
-            EmployeeVacation(
-                employeeName: "王小明",
-                employeeId: "E001",
-                dates: Set([
-                    String(format: "%04d-%02d-15", currentYear, currentMonth),
-                    String(format: "%04d-%02d-16", currentYear, currentMonth)
-                ]),
-                submitDate: Date(),
-                status: .pending,
-                note: "家庭旅遊"
-            ),
-            EmployeeVacation(
-                employeeName: "李美麗",
-                employeeId: "E002",
-                dates: Set([
-                    String(format: "%04d-%02d-20", currentYear, currentMonth),
-                    String(format: "%04d-%02d-21", currentYear, currentMonth),
-                    String(format: "%04d-%02d-22", currentYear, currentMonth)
-                ]),
-                submitDate: Date(),
-                status: .approved,
-                note: "出國度假"
-            ),
-            EmployeeVacation(
-                employeeName: "陳大華",
-                employeeId: "E003",
-                dates: Set([String(format: "%04d-%02d-10", currentYear, currentMonth)]),
-                submitDate: Date(),
-                status: .pending,
-                note: "醫療預約"
-            ),
-            EmployeeVacation(
-                employeeName: "張小花",
-                employeeId: "E004",
-                dates: Set([
-                    String(format: "%04d-%02d-25", currentYear, currentMonth),
-                    String(format: "%04d-%02d-26", currentYear, currentMonth)
-                ]),
-                submitDate: Date(),
-                status: .approved,
-                note: "家人生日"
-            )
-        ]
-
-        employeeVacations = mockVacations
-
-        // Debug print to verify data loading
-        print("✅ Mock data loaded:")
-        for vacation in employeeVacations {
-            print("- \(vacation.employeeName): \(vacation.dates)")
+    private func getYearMonthFromDateString(_ dateString: String) -> (year: Int, month: Int)? {
+        let components = dateString.split(separator: "-")
+        guard components.count == 3,
+              let year = Int(components[0]),
+              let month = Int(components[1]) else {
+            return nil
         }
+        return (year, month)
+    }
+
+    private func getMonthNumber(from monthString: String) -> Int {
+        let monthMap = [
+            "1月": 1, "2月": 2, "3月": 3, "4月": 4,
+            "5月": 5, "6月": 6, "7月": 7, "8月": 8,
+            "9月": 9, "10月": 10, "11月": 11, "12月": 12
+        ]
+        return monthMap[monthString] ?? 1
     }
 }

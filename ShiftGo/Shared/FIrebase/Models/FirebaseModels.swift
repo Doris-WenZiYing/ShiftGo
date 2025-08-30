@@ -46,7 +46,7 @@ struct Company: Codable, Identifiable {
     }
 }
 
-// MARK: - 排休設定模型
+// MARK: - 排休設定模型 (修復版)
 struct FirebaseVacationSettings: Codable, Identifiable {
     @DocumentID var id: String?
     let companyId: String
@@ -75,9 +75,26 @@ struct FirebaseVacationSettings: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
+
+    // 手動初始化器確保所有欄位都正確設置
+    init(companyId: String, targetYear: Int, targetMonth: Int, maxDaysPerMonth: Int,
+         maxDaysPerWeek: Int, limitType: String, deadline: Timestamp, isPublished: Bool,
+         publishedAt: Timestamp?, createdAt: Timestamp, updatedAt: Timestamp) {
+        self.companyId = companyId
+        self.targetYear = targetYear
+        self.targetMonth = targetMonth
+        self.maxDaysPerMonth = maxDaysPerMonth
+        self.maxDaysPerWeek = maxDaysPerWeek
+        self.limitType = limitType
+        self.deadline = deadline
+        self.isPublished = isPublished
+        self.publishedAt = publishedAt
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
 }
 
-// MARK: - 排休申請模型
+// MARK: - 排休申請模型 (修復版 - 添加容錯處理)
 struct FirebaseVacationRequest: Codable, Identifiable {
     @DocumentID var id: String?
     let companyId: String
@@ -111,6 +128,53 @@ struct FirebaseVacationRequest: Codable, Identifiable {
         case reviewedBy = "reviewed_by"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+
+    // 手動初始化器
+    init(companyId: String, userId: String, employeeName: String, employeeId: String,
+         targetYear: Int, targetMonth: Int, vacationDates: [String], note: String,
+         status: String, submitDate: Timestamp, reviewedAt: Timestamp?,
+         reviewedBy: String?, createdAt: Timestamp, updatedAt: Timestamp) {
+        self.companyId = companyId
+        self.userId = userId
+        self.employeeName = employeeName
+        self.employeeId = employeeId
+        self.targetYear = targetYear
+        self.targetMonth = targetMonth
+        self.vacationDates = vacationDates
+        self.note = note
+        self.status = status
+        self.submitDate = submitDate
+        self.reviewedAt = reviewedAt
+        self.reviewedBy = reviewedBy
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    // 自定義解碼器 - 處理缺失欄位
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // 必需欄位
+        companyId = try container.decode(String.self, forKey: .companyId)
+        userId = try container.decode(String.self, forKey: .userId)
+        employeeName = try container.decode(String.self, forKey: .employeeName)
+        employeeId = try container.decode(String.self, forKey: .employeeId)
+
+        // 可能缺失的欄位，提供默認值
+        targetYear = try container.decodeIfPresent(Int.self, forKey: .targetYear) ?? 2025
+        targetMonth = try container.decodeIfPresent(Int.self, forKey: .targetMonth) ?? 8
+
+        vacationDates = try container.decodeIfPresent([String].self, forKey: .vacationDates) ?? []
+        note = try container.decodeIfPresent(String.self, forKey: .note) ?? ""
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? "pending"
+
+        // 時間戳欄位
+        submitDate = try container.decodeIfPresent(Timestamp.self, forKey: .submitDate) ?? Timestamp()
+        reviewedAt = try container.decodeIfPresent(Timestamp.self, forKey: .reviewedAt)
+        reviewedBy = try container.decodeIfPresent(String.self, forKey: .reviewedBy)
+        createdAt = try container.decodeIfPresent(Timestamp.self, forKey: .createdAt) ?? Timestamp()
+        updatedAt = try container.decodeIfPresent(Timestamp.self, forKey: .updatedAt) ?? Timestamp()
     }
 }
 
@@ -163,12 +227,17 @@ extension FirebaseVacationSettings {
     }
 }
 
-// MARK: - 本地模型轉Firebase擴展
+// MARK: - 本地模型轉Firebase擴展 (修復版)
 extension VacationSettings {
     func toFirebaseVacationSettings(companyId: String) -> FirebaseVacationSettings {
         let monthNumber = getMonthNumber(from: targetMonth)
         let limitTypeString = limitType == .weekly ? "weekly" : "monthly"
         let now = Timestamp()
+
+        print("🔄 Converting VacationSettings to Firebase:")
+        print("   - Target: \(targetYear)/\(monthNumber) (\(targetMonth))")
+        print("   - isPublished: \(isPublished)")
+        print("   - publishedAt: \(publishedAt?.description ?? "nil")")
 
         return FirebaseVacationSettings(
             companyId: companyId,
@@ -178,7 +247,7 @@ extension VacationSettings {
             maxDaysPerWeek: maxDaysPerWeek,
             limitType: limitTypeString,
             deadline: Timestamp(date: deadline),
-            isPublished: isPublished,
+            isPublished: isPublished, // 確保這裡正確傳遞
             publishedAt: publishedAt != nil ? Timestamp(date: publishedAt!) : nil,
             createdAt: now,
             updatedAt: now

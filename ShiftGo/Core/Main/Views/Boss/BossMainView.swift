@@ -1,11 +1,19 @@
 //
-//  BossMainView.swift (Fixed Calendar Color Bars)
+//  BossMainView.swift (Fixed Multiple Sheets Issue)
 //  ShiftGo
 //
 //  Created by Doris Wen on 2025/8/25.
 //
 
 import SwiftUI
+
+// MARK: - Sheet Type Enum
+enum BossSheetType {
+    case management
+    case vacationSettings
+    case scheduleGeneration
+    case scheduleView
+}
 
 struct BossMainView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -21,12 +29,9 @@ struct BossMainView: View {
     @State private var selectedMonth = Calendar.current.component(.month, from: Date())
     @State private var selectedDate = Date()
 
-    // Management Sheet States
-    @State private var isManagementSheetPresented = false
+    // Unified Sheet Management
+    @State private var currentSheet: BossSheetType?
     @State private var selectedAction: BossAction?
-    @State private var showingVacationSettingsView = false
-    @State private var showingScheduleGenerationView = false
-    @State private var showingScheduleViewView = false
 
     var body: some View {
         GeometryReader { reader in
@@ -40,7 +45,7 @@ struct BossMainView: View {
                 }
                 .background(AppColors.Background.primary(colorScheme))
 
-                // Selected date information (類似 InformationWithSelectionView)
+                // Selected date information
                 VStack {
                     Spacer()
 
@@ -57,9 +62,27 @@ struct BossMainView: View {
                 }
             }
         }
-        .sheet(isPresented: $isManagementSheetPresented) {
+        .sheet(item: Binding<BossSheetType?>(
+            get: { currentSheet },
+            set: { currentSheet = $0 }
+        )) { sheetType in
+            sheetContent(for: sheetType)
+        }
+        .onChange(of: selectedAction) { _, action in
+            handleSelectedAction(action)
+        }
+    }
+
+    // MARK: - Sheet Content
+    @ViewBuilder
+    private func sheetContent(for sheetType: BossSheetType) -> some View {
+        switch sheetType {
+        case .management:
             BossManagementSheet(
-                isPresented: $isManagementSheetPresented,
+                isPresented: Binding(
+                    get: { currentSheet == .management },
+                    set: { _ in currentSheet = nil }
+                ),
                 selectedAction: $selectedAction,
                 isVacationPublished: .constant(viewModel.isVacationPublished),
                 employeeVacationCount: .constant(viewModel.employeeVacationCount),
@@ -67,24 +90,24 @@ struct BossMainView: View {
             )
             .environmentObject(themeManager)
             .presentationDetents([.fraction(0.6), .large])
-        }
-        .sheet(isPresented: $showingVacationSettingsView) {
+
+        case .vacationSettings:
             VacationSettingsView(viewModel: viewModel)
                 .environmentObject(themeManager)
-        }
-        .sheet(isPresented: $showingScheduleGenerationView) {
-//            BossScheduleGenerationView()
-//                .environmentObject(themeManager)
-        }
-        .sheet(isPresented: $showingScheduleViewView) {
+
+        case .scheduleGeneration:
+            Text("班表生成界面")
+                .font(.title)
+                .foregroundColor(AppColors.Text.header(colorScheme))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(AppColors.Background.primary(colorScheme))
+
+        case .scheduleView:
             Text("班表查看界面")
                 .font(.title)
                 .foregroundColor(AppColors.Text.header(colorScheme))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(AppColors.Background.primary(colorScheme))
-        }
-        .onChange(of: selectedAction) { _, action in
-            handleSelectedAction(action)
         }
     }
 
@@ -120,7 +143,7 @@ struct BossMainView: View {
 
                 // Management button moved to top right
                 Button(action: {
-                    isManagementSheetPresented = true
+                    currentSheet = .management
                 }) {
                     HStack(spacing: 6) {
                         Image(systemName: "crown.fill")
@@ -231,7 +254,7 @@ struct BossMainView: View {
         }
     }
 
-    // MARK: - Calendar Section (FIXED)
+    // MARK: - Calendar Section
     private func calendarSection() -> some View {
         VStack(alignment: .leading, spacing: 0) {
             CalendarView(controller, header: { week in
@@ -242,9 +265,8 @@ struct BossMainView: View {
                 }
             }, component: { date in
                 GeometryReader { geometry in
-                    // 修復：重新設計cell的佈局結構
                     VStack(spacing: 2) {
-                        // Day number - 固定高度，不佔滿整個cell
+                        // Day number
                         Text("\(date.day)")
                             .font(.system(
                                 size: 14,
@@ -253,7 +275,7 @@ struct BossMainView: View {
                             ))
                             .opacity(date.isFocusYearMonth == true ? 1 : 0.4)
                             .foregroundColor(date.dayColor(for: colorScheme))
-                            .frame(height: 20) // fixed Text height
+                            .frame(height: 20)
                             .padding(.top, 4)
 
                         // Vacation indicators
@@ -280,7 +302,6 @@ struct BossMainView: View {
                                         .opacity(date.isFocusYearMonth == true ? 1 : 0.4)
                                 }
 
-                                // 如果有超過3個vacation，顯示省略號
                                 if matchingVacations.count > 3 {
                                     Text("···")
                                         .font(.system(size: 8, weight: .bold))
@@ -291,7 +312,7 @@ struct BossMainView: View {
                             .padding(.top, 2)
                         }
 
-                        Spacer() // 讓內容靠上對齊
+                        Spacer()
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
                     .background(
@@ -314,7 +335,6 @@ struct BossMainView: View {
     // MARK: - Selected Date Info Section
     private func selectedDateInfoSection() -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header
             HStack {
                 Image(systemName: "calendar.badge.checkmark")
                     .font(.system(size: 16))
@@ -338,7 +358,6 @@ struct BossMainView: View {
                 .foregroundColor(.blue)
             }
 
-            // Vacation list
             ScrollView {
                 LazyVStack(spacing: 8) {
                     ForEach(viewModel.selectedDateVacations) { vacation in
@@ -363,12 +382,10 @@ struct BossMainView: View {
 
     private func vacationDetailCard(_ vacation: EmployeeVacation) -> some View {
         HStack(spacing: 12) {
-            // Employee color indicator
             Circle()
                 .fill(getEmployeeColor(vacation.employeeName))
                 .frame(width: 12, height: 12)
 
-            // Employee info
             VStack(alignment: .leading, spacing: 4) {
                 Text(vacation.employeeName)
                     .font(.system(size: 14, weight: .semibold))
@@ -383,7 +400,6 @@ struct BossMainView: View {
 
             Spacer()
 
-            // Status and actions
             VStack(alignment: .trailing, spacing: 4) {
                 statusBadge(vacation.status)
 
@@ -462,28 +478,38 @@ struct BossMainView: View {
     private func handleSelectedAction(_ action: BossAction?) {
         guard let action = action else { return }
 
-        switch action {
-        case .publishVacation:
-            showingVacationSettingsView = true
-        case .unpublishVacation:
-            viewModel.unpublishVacation()
-        case .manageVacationLimits:
-            showingVacationSettingsView = true
-        case .generateSchedule:
-            showingScheduleGenerationView = true
-        case .viewSchedule:
-            showingScheduleViewView = true
-        default:
-            break
-        }
-
-        // Reset selection
+        // 延遲一點以確保當前 sheet 狀態穩定
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            switch action {
+            case .publishVacation, .manageVacationLimits:
+                // 關閉管理 sheet 後開啟排休設定 sheet
+                currentSheet = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    currentSheet = .vacationSettings
+                }
+            case .unpublishVacation:
+                viewModel.unpublishVacation()
+                currentSheet = nil
+            case .generateSchedule:
+                currentSheet = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    currentSheet = .scheduleGeneration
+                }
+            case .viewSchedule:
+                currentSheet = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    currentSheet = .scheduleView
+                }
+            default:
+                currentSheet = nil
+            }
+
+            // Reset selection
             selectedAction = nil
         }
     }
 
-    // MARK: - Helper Methods (增強顏色對比)
+    // MARK: - Helper Methods
     private func getEmployeeColor(_ employeeName: String) -> Color {
         let colors: [Color] = [
             .blue, .orange, .green, .purple,
@@ -502,6 +528,17 @@ struct BossMainView: View {
             return ("已核准", .green)
         case .rejected:
             return ("已拒絕", .red)
+        }
+    }
+}
+
+extension BossSheetType: Identifiable {
+    var id: String {
+        switch self {
+        case .management: return "management"
+        case .vacationSettings: return "vacationSettings"
+        case .scheduleGeneration: return "scheduleGeneration"
+        case .scheduleView: return "scheduleView"
         }
     }
 }
