@@ -9,6 +9,7 @@ import SwiftUI
 
 struct JoinCompanyView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var userManager = UserManager.shared
     @State private var inviteCode = ""
     @State private var isLoading = false
@@ -20,7 +21,7 @@ struct JoinCompanyView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.black.ignoresSafeArea()
+                AppColors.Background.primary(colorScheme).ignoresSafeArea()
 
                 if showSuccess {
                     successView()
@@ -33,7 +34,7 @@ struct JoinCompanyView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") { dismiss() }
-                        .foregroundColor(.white)
+                        .foregroundColor(AppColors.Text.header(colorScheme))
                 }
             }
         }
@@ -53,19 +54,19 @@ struct JoinCompanyView: View {
 
                 Text("加入組織")
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("邀請碼")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
 
                 TextField("輸入 6 位邀請碼", text: $inviteCode)
                     .textCase(.uppercase)
                     .font(.system(size: 20, weight: .bold, design: .monospaced))
                     .multilineTextAlignment(.center)
-//                    .textFieldStyle(CustomTextFieldStyle())
+                    .textFieldStyle(CustomTextFieldStyle(colorScheme: colorScheme))
                     .onChange(of: inviteCode) { _, newValue in
                         let filtered = String(newValue.prefix(6).filter { $0.isLetter || $0.isNumber })
                         if filtered != newValue {
@@ -88,7 +89,7 @@ struct JoinCompanyView: View {
                     Text(isLoading ? "加入中..." : "加入組織")
                         .font(.system(size: 18, weight: .semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(inviteCode.count == 6 ? Color.green : Color.gray)
@@ -107,18 +108,18 @@ struct JoinCompanyView: View {
 
             Text("加入成功！")
                 .font(.system(size: 24, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
 
             Text("您已成功加入 \(companyName)")
                 .font(.system(size: 16))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
                 .multilineTextAlignment(.center)
 
             Button("開始使用") {
                 dismiss()
             }
             .font(.system(size: 18, weight: .semibold))
-            .foregroundColor(.white)
+            .foregroundColor(AppColors.Text.header(colorScheme))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(Color.blue)

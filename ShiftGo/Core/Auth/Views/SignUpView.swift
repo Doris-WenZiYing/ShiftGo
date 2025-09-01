@@ -11,6 +11,7 @@ import Combine
 struct SignUpView: View {
     @StateObject private var userManager = UserManager.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
 
     // Basic Info
     @State private var displayName = ""
@@ -35,7 +36,7 @@ struct SignUpView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            AppColors.Background.primary(colorScheme).ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -72,11 +73,11 @@ struct SignUpView: View {
 
             Text("建立帳號")
                 .font(.system(size: 28, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
 
             Text("開始使用 ShiftGo 管理您的班表")
                 .font(.system(size: 16))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
                 .multilineTextAlignment(.center)
         }
         .padding(.top, 20)
@@ -150,18 +151,18 @@ struct SignUpView: View {
 
                 Text(title)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
 
                 Text(subtitle)
                     .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 20)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(selectedRole == role ? color : Color.white.opacity(0.1))
+                    .fill(selectedRole == role ? color : AppColors.Text.header(colorScheme).opacity(0.1))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(selectedRole == role ? Color.clear : color.opacity(0.5), lineWidth: 1)
@@ -252,7 +253,7 @@ struct SignUpView: View {
                     Text(isLoading ? "註冊中..." : "建立帳號")
                         .font(.system(size: 18, weight: .semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(isFormValid ? Color.blue : Color.gray)
@@ -266,7 +267,7 @@ struct SignUpView: View {
     private func signInLink() -> some View {
         HStack {
             Text("已有帳號？")
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
 
             Button("立即登入") {
                 dismiss()
@@ -285,7 +286,7 @@ struct SignUpView: View {
 
             Text(title)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
 
             Spacer()
         }
@@ -301,11 +302,11 @@ struct SignUpView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
 
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
                     .frame(width: 20)
 
                 TextField(placeholder, text: text)
@@ -313,7 +314,7 @@ struct SignUpView: View {
                     .autocapitalization(keyboardType == .emailAddress ? .none : .words)
                     .disableAutocorrection(keyboardType == .emailAddress)
             }
-            .textFieldStyle(SignUpTextFieldStyle())
+            .textFieldStyle(SignUpTextFieldStyle(colorScheme: colorScheme))
         }
     }
 
@@ -326,11 +327,11 @@ struct SignUpView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
 
             HStack {
                 Image(systemName: "lock.fill")
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
                     .frame(width: 20)
 
                 Group {
@@ -343,10 +344,10 @@ struct SignUpView: View {
 
                 Button(action: { showPassword.wrappedValue.toggle() }) {
                     Image(systemName: showPassword.wrappedValue ? "eye.slash.fill" : "eye.fill")
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
                 }
             }
-            .textFieldStyle(SignUpTextFieldStyle())
+            .textFieldStyle(SignUpTextFieldStyle(colorScheme: colorScheme))
         }
     }
 
@@ -366,7 +367,7 @@ struct SignUpView: View {
 
             Text(text)
                 .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
         }
     }
 
@@ -385,7 +386,7 @@ struct SignUpView: View {
 
                         Text(item)
                             .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
                     }
                 }
             }
@@ -414,7 +415,7 @@ struct SignUpView: View {
 
                 Text("建立帳號中...")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
             }
             .padding(24)
             .background(Color.black.opacity(0.8))
@@ -488,13 +489,16 @@ struct SignUpView: View {
 
 // MARK: - Custom Text Field Style
 struct SignUpTextFieldStyle: TextFieldStyle {
+
+    let colorScheme: ColorScheme
+
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(Color.white.opacity(0.1))
+            .background(AppColors.Text.header(colorScheme).opacity(0.1))
             .cornerRadius(12)
-            .foregroundColor(.white)
+            .foregroundColor(AppColors.Text.header(colorScheme))
     }
 }
 

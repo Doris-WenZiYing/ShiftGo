@@ -389,7 +389,7 @@ class FirebaseService: ObservableObject {
             "name": name,
             "owner_id": ownerId,
             "invite_code": inviteCode,
-            "max_employees": 50,
+            "max_employees": 5,
             "timezone": "Asia/Taipei",
             "created_at": Timestamp(),
             "updated_at": Timestamp()

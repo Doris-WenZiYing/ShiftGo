@@ -11,10 +11,11 @@ struct CompanySetupView: View {
     @StateObject private var userManager = UserManager.shared
     @State private var showingCreateCompany = false
     @State private var showingJoinCompany = false
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            AppColors.Background.primary(colorScheme).ignoresSafeArea()
 
             VStack(spacing: 40) {
                 headerView()
@@ -40,15 +41,15 @@ struct CompanySetupView: View {
             VStack(spacing: 8) {
                 Text("設置您的工作場所")
                     .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
 
                 Text("歡迎使用 ShiftGo！")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
 
                 Text("請選擇您要建立新組織還是加入現有組織")
                     .font(.system(size: 16))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
                     .multilineTextAlignment(.center)
             }
         }
@@ -90,23 +91,23 @@ struct CompanySetupView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
 
                 Text(subtitle)
                     .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
         }
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.05))
+                .fill(AppColors.Text.header(colorScheme).opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(color.opacity(0.3), lineWidth: 1)
@@ -125,12 +126,12 @@ struct CompanySetupView: View {
                     Text("登出")
                         .font(.system(size: 16, weight: .medium))
                 }
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white.opacity(0.1))
+                        .fill(AppColors.Text.header(colorScheme).opacity(0.1))
                 )
             }
 
@@ -139,11 +140,11 @@ struct CompanySetupView: View {
                 VStack(spacing: 4) {
                     Text("登入身分：\(user.name)")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
 
                     Text(user.email)
                         .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
                 }
             }
         }

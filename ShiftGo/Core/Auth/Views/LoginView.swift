@@ -11,6 +11,7 @@ import Combine
 struct LoginView: View {
     @StateObject private var userManager = UserManager.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
 
     @State private var isSignUp = false
     @State private var email = ""
@@ -33,7 +34,7 @@ struct LoginView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.black.ignoresSafeArea()
+                AppColors.Background.primary(colorScheme).ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -76,13 +77,13 @@ struct LoginView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.blue)
 
-            Text("ShiftGo")  // 🔥 保持原有名稱
+            Text("ShiftGo")
                 .font(.system(size: 32, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
 
             Text(isSignUp ? "建立您的排班帳號" : "歡迎回來")
                 .font(.system(size: 18))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
         }
         .padding(.top, 40)
     }
@@ -123,7 +124,7 @@ struct LoginView: View {
         VStack(spacing: 16) {
             Text("選擇您的身分")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
 
             HStack(spacing: 16) {
                 roleButton(.boss, "我是老闆", "創建組織")
@@ -131,7 +132,7 @@ struct LoginView: View {
             }
         }
         .padding(20)
-        .background(Color.white.opacity(0.05))
+        .background(AppColors.Background.secondary(colorScheme))
         .cornerRadius(16)
     }
 
@@ -140,19 +141,19 @@ struct LoginView: View {
             VStack(spacing: 8) {
                 Image(systemName: role == .boss ? "crown.fill" : "person.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(selectedRole == role ? .white : .gray)
+                    .foregroundColor(selectedRole == role ? .white : AppColors.Text.header(colorScheme).opacity(0.7))
 
                 Text(title)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(selectedRole == role ? .white : AppColors.Text.header(colorScheme))
 
                 Text(subtitle)
                     .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(selectedRole == role ? .white.opacity(0.8) : AppColors.Text.header(colorScheme).opacity(0.7))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(selectedRole == role ? Color.blue : Color.gray.opacity(0.2))
+            .background(selectedRole == role ? Color.blue : AppColors.Background.primary(colorScheme))
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
@@ -166,7 +167,7 @@ struct LoginView: View {
                     .foregroundColor(.orange)
                 Text("組織資訊")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
                 Spacer()
             }
 
@@ -185,7 +186,7 @@ struct LoginView: View {
                     .foregroundColor(.green)
                 Text("加入組織")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
                 Spacer()
             }
 
@@ -193,7 +194,7 @@ struct LoginView: View {
 
             Text("請向您的老闆索取邀請碼")
                 .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
         }
         .padding(20)
         .background(Color.green.opacity(0.1))
@@ -205,7 +206,7 @@ struct LoginView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
 
             Group {
                 if isSecure {
@@ -215,7 +216,7 @@ struct LoginView: View {
                 }
             }
             .keyboardType(keyboardType)
-            .textFieldStyle(CustomTextFieldStyle())
+            .textFieldStyle(CustomTextFieldStyle(colorScheme: colorScheme))
         }
     }
 
@@ -236,10 +237,10 @@ struct LoginView: View {
                     Text(isSignUp ? "註冊" : "登入")
                         .font(.system(size: 18, weight: .semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(isFormValid ? Color.blue : Color.gray)
+                .background(isFormValid ? Color.blue : Color.gray.opacity(0.5))
                 .cornerRadius(12)
             }
             .disabled(!isFormValid || isLoading)
@@ -249,16 +250,16 @@ struct LoginView: View {
     private func dividerView() -> some View {
         HStack {
             Rectangle()
-                .fill(Color.white.opacity(0.3))
+                .fill(AppColors.Text.header(colorScheme).opacity(0.3))
                 .frame(height: 1)
 
             Text("或")
                 .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
                 .padding(.horizontal, 16)
 
             Rectangle()
-                .fill(Color.white.opacity(0.3))
+                .fill(AppColors.Text.header(colorScheme).opacity(0.3))
                 .frame(height: 1)
         }
     }
@@ -272,14 +273,14 @@ struct LoginView: View {
                 Text("訪客體驗")
                     .font(.system(size: 16, weight: .medium))
             }
-            .foregroundColor(.white.opacity(0.8))
+            .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(Color.white.opacity(0.1))
+            .background(AppColors.Text.header(colorScheme).opacity(0.1))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                    .stroke(AppColors.Text.header(colorScheme).opacity(0.3), lineWidth: 1)
             )
         }
         .disabled(isLoading)
@@ -289,7 +290,7 @@ struct LoginView: View {
         Button(action: { isSignUp.toggle() }) {
             HStack {
                 Text(isSignUp ? "已有帳號？" : "還沒有帳號？")
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
 
                 Text(isSignUp ? "立即登入" : "立即註冊")
                     .foregroundColor(.blue)
@@ -313,10 +314,10 @@ struct LoginView: View {
 
                 Text(isSignUp ? "註冊中..." : "登入中...")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
             }
             .padding(24)
-            .background(Color.black.opacity(0.8))
+            .background(AppColors.Text.header(colorScheme).opacity(0.8))
             .cornerRadius(16)
         }
     }
@@ -412,18 +413,15 @@ struct LoginView: View {
 
 // MARK: - Custom TextField Style (保持原有設計)
 struct CustomTextFieldStyle: TextFieldStyle {
+    let colorScheme: ColorScheme
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.white.opacity(0.1))
+            .background(AppColors.Text.header(colorScheme).opacity(0.1))
             .cornerRadius(8)
-            .foregroundColor(.white)
+            .foregroundColor(AppColors.Text.header(colorScheme))
     }
-}
-
-#Preview {
-    LoginView()
 }
 
 #Preview {

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CreateCompanyView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var userManager = UserManager.shared
     @State private var companyName = ""
     @State private var isLoading = false
@@ -20,7 +21,7 @@ struct CreateCompanyView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.black.ignoresSafeArea()
+                AppColors.Background.primary(colorScheme).ignoresSafeArea()
 
                 if showSuccess {
                     successView()
@@ -33,7 +34,7 @@ struct CreateCompanyView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") { dismiss() }
-                        .foregroundColor(.white)
+                        .foregroundColor(AppColors.Text.header(colorScheme))
                 }
             }
         }
@@ -53,16 +54,16 @@ struct CreateCompanyView: View {
 
                 Text("建立您的組織")
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("組織名稱")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
 
                 TextField("例：我的咖啡廳", text: $companyName)
-//                    .textFieldStyle(CustomTextFieldStyle())
+                    .textFieldStyle(CustomTextFieldStyle(colorScheme: colorScheme))
             }
 
             Button(action: createCompany) {
@@ -79,7 +80,7 @@ struct CreateCompanyView: View {
                     Text(isLoading ? "建立中..." : "建立組織")
                         .font(.system(size: 18, weight: .semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(!companyName.isEmpty ? Color.orange : Color.gray)
@@ -98,24 +99,24 @@ struct CreateCompanyView: View {
 
             Text("組織建立成功！")
                 .font(.system(size: 24, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
 
             VStack(spacing: 16) {
                 Text("邀請碼")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
 
                 Text(generatedInviteCode)
                     .font(.system(size: 32, weight: .bold, design: .monospaced))
                     .foregroundColor(.orange)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 16)
-                    .background(Color.white.opacity(0.1))
+                    .background(AppColors.Text.header(colorScheme).opacity(0.1))
                     .cornerRadius(12)
 
                 Text("將此邀請碼分享給您的員工")
                     .font(.system(size: 16))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
                     .multilineTextAlignment(.center)
             }
 
@@ -123,7 +124,7 @@ struct CreateCompanyView: View {
                 dismiss()
             }
             .font(.system(size: 18, weight: .semibold))
-            .foregroundColor(.white)
+            .foregroundColor(AppColors.Text.header(colorScheme))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(Color.blue)

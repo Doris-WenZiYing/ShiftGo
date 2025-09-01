@@ -10,6 +10,7 @@ import SwiftUI
 struct EmployeeReportsView: View {
 
     @EnvironmentObject var themeManager: ThemeManager
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 20) {
@@ -19,11 +20,11 @@ struct EmployeeReportsView: View {
 
             Text("Reports")
                 .font(.largeTitle)
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
 
             Text("統計報表功能開發中...")
                 .font(.body)
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

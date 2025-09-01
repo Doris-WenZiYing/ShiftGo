@@ -11,6 +11,7 @@ import Combine
 struct SignInView: View {
     @StateObject private var userManager = UserManager.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
 
     // Form State
     @State private var email = ""
@@ -25,7 +26,7 @@ struct SignInView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            AppColors.Background.primary(colorScheme).ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 30) {
@@ -61,11 +62,11 @@ struct SignInView: View {
 
             Text("歡迎回來")
                 .font(.system(size: 28, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
 
             Text("登入您的 ShiftGo 帳號")
                 .font(.system(size: 16))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
         }
         .padding(.top, 40)
     }
@@ -77,11 +78,11 @@ struct SignInView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("電子郵件")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
 
                 HStack {
                     Image(systemName: "envelope.fill")
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
                         .frame(width: 20)
 
                     TextField("輸入您的電子郵件", text: $email)
@@ -90,18 +91,18 @@ struct SignInView: View {
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                 }
-                .textFieldStyle(SignInTextFieldStyle())
+                .textFieldStyle(SignInTextFieldStyle(colorScheme: colorScheme))
             }
 
             // Password Field
             VStack(alignment: .leading, spacing: 8) {
                 Text("密碼")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
 
                 HStack {
                     Image(systemName: "lock.fill")
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
                         .frame(width: 20)
 
                     Group {
@@ -115,10 +116,10 @@ struct SignInView: View {
 
                     Button(action: { showPassword.toggle() }) {
                         Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
                     }
                 }
-                .textFieldStyle(SignInTextFieldStyle())
+                .textFieldStyle(SignInTextFieldStyle(colorScheme: colorScheme))
             }
 
             // Forgot Password
@@ -151,7 +152,7 @@ struct SignInView: View {
                     Text(isLoading ? "登入中..." : "登入")
                         .font(.system(size: 18, weight: .semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(AppColors.Text.header(colorScheme))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(isFormValid ? Color.blue : Color.gray)
@@ -166,16 +167,16 @@ struct SignInView: View {
     private func dividerView() -> some View {
         HStack {
             Rectangle()
-                .fill(Color.white.opacity(0.3))
+                .fill(AppColors.Text.header(colorScheme).opacity(0.3))
                 .frame(height: 1)
 
             Text("或")
                 .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
                 .padding(.horizontal, 16)
 
             Rectangle()
-                .fill(Color.white.opacity(0.3))
+                .fill(AppColors.Text.header(colorScheme).opacity(0.3))
                 .frame(height: 1)
         }
     }
@@ -192,14 +193,14 @@ struct SignInView: View {
                     Text("訪客體驗")
                         .font(.system(size: 16, weight: .medium))
                 }
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(Color.white.opacity(0.1))
+                .background(AppColors.Text.header(colorScheme).opacity(0.1))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                        .stroke(AppColors.Text.header(colorScheme).opacity(0.3), lineWidth: 1)
                 )
             }
             .disabled(isLoading)
@@ -207,7 +208,7 @@ struct SignInView: View {
             // Sign Up Link
             HStack {
                 Text("還沒有帳號？")
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.7))
 
                 NavigationLink("立即註冊", destination: SignUpView())
                     .foregroundColor(.blue)
@@ -220,8 +221,7 @@ struct SignInView: View {
     // MARK: - Loading Overlay
     private func loadingOverlay() -> some View {
         ZStack {
-            Color.black.opacity(0.5)
-                .ignoresSafeArea()
+            AppColors.Background.primary(colorScheme).ignoresSafeArea()
 
             VStack(spacing: 16) {
                 ProgressView()
@@ -230,10 +230,10 @@ struct SignInView: View {
 
                 Text("登入中...")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.Text.header(colorScheme))
             }
             .padding(24)
-            .background(Color.black.opacity(0.8))
+            .background(AppColors.Background.primary(colorScheme).opacity(0.8))
             .cornerRadius(16)
         }
     }
@@ -296,13 +296,14 @@ struct SignInView: View {
 
 // MARK: - Custom Text Field Style
 struct SignInTextFieldStyle: TextFieldStyle {
+    let colorScheme: ColorScheme
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(Color.white.opacity(0.1))
+            .background(AppColors.Text.header(colorScheme).opacity(0.1))
             .cornerRadius(12)
-            .foregroundColor(.white)
+            .foregroundColor(AppColors.Text.header(colorScheme))
     }
 }
 
@@ -310,8 +311,4 @@ struct SignInTextFieldStyle: TextFieldStyle {
     NavigationView {
         SignInView()
     }
-}
-
-#Preview {
-    SignInView()
 }
