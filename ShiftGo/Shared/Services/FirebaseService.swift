@@ -1,5 +1,5 @@
 //
-//  FirebaseService.swift (Debug Version with Detailed Logging)
+//  FirebaseService.swift
 //  ShiftGo
 //
 //  Created by Doris Wen on 2025/8/30.
@@ -13,52 +13,49 @@ class FirebaseService: ObservableObject {
     private let db = Firestore.firestore()
     static let shared = FirebaseService()
 
-    // 🔑 確保 Boss 和 Employee 使用相同的識別碼
-    private let currentCompanyId = "company_demo_001"
-    private let currentUserId = "user_demo_001"
+    // 🔥 修改：動態獲取公司 ID 和用戶 ID，不再使用固定值
+    private var currentCompanyId: String? {
+        return UserManager.shared.currentCompany?.id
+    }
+
+    private var currentUserId: String? {
+        return Auth.auth().currentUser?.uid
+    }
 
     init() {
         let settings = FirestoreSettings()
         settings.isPersistenceEnabled = true
         db.settings = settings
 
-        print("🚀 [FirebaseService] Initialized with company_id: \(currentCompanyId)")
+        print("🚀 [FirebaseService] Initialized")
     }
 
-    // MARK: - Boss 功能
+    // MARK: - Boss 功能 (保持現有，但使用動態 ID)
 
-    /// 發布排休設定 (詳細除錯版)
+    /// 發布排休設定 (修復版)
     func publishVacationSettings(_ settings: VacationSettings) async throws {
-        print("📢 [Boss] Starting publishVacationSettings")
+        guard let companyId = currentCompanyId else {
+            throw FirebaseError.invalidCompany
+        }
+
+        print("📢 [Boss] Starting to publish vacation settings for company: \(companyId)")
         print("   - Input settings: \(settings.targetYear)/\(settings.targetMonth)")
         print("   - Input isPublished: \(settings.isPublished)")
-        print("   - Input publishedAt: \(settings.publishedAt?.description ?? "nil")")
 
-        let firebaseSettings = settings.toFirebaseVacationSettings(companyId: currentCompanyId)
+        let firebaseSettings = settings.toFirebaseVacationSettings(companyId: companyId)
 
         print("📢 [Boss] Converted to Firebase settings:")
         print("   - targetYear: \(firebaseSettings.targetYear)")
         print("   - targetMonth: \(firebaseSettings.targetMonth)")
         print("   - isPublished: \(firebaseSettings.isPublished)")
-        print("   - publishedAt: \(firebaseSettings.publishedAt?.dateValue().description ?? "nil")")
         print("   - companyId: \(firebaseSettings.companyId)")
 
-        // 簡化查詢：只用 company_id 查詢，然後在客戶端過濾
+        // 查詢現有設定
         let query = db.collection("vacation_settings")
-            .whereField("company_id", isEqualTo: currentCompanyId)
+            .whereField("company_id", isEqualTo: companyId)
 
         let snapshot = try await query.getDocuments()
         print("   - Found \(snapshot.documents.count) existing settings documents")
-
-        // 檢查現有文檔
-        for (index, doc) in snapshot.documents.enumerated() {
-            do {
-                let existingData = try doc.data(as: FirebaseVacationSettings.self)
-                print("   - Document \(index): \(existingData.targetYear)/\(existingData.targetMonth) (published: \(existingData.isPublished))")
-            } catch {
-                print("   - Document \(index): Failed to decode - \(error)")
-            }
-        }
 
         // 在客戶端過濾出匹配的文檔
         let matchingDoc = snapshot.documents.first { doc in
@@ -79,7 +76,6 @@ class FirebaseService: ObservableObject {
         if let document = matchingDoc {
             print("   - Updating existing document: \(document.documentID)")
 
-            // 🔥 直接更新必要欄位，而不是使用 merge
             try await document.reference.updateData([
                 "is_published": true,
                 "published_at": Timestamp(),
@@ -105,9 +101,11 @@ class FirebaseService: ObservableObject {
 
     /// 驗證發布狀態（除錯用）
     private func verifyPublishStatus(year: Int, month: Int) async {
+        guard let companyId = currentCompanyId else { return }
+
         do {
             let query = db.collection("vacation_settings")
-                .whereField("company_id", isEqualTo: currentCompanyId)
+                .whereField("company_id", isEqualTo: companyId)
 
             let snapshot = try await query.getDocuments()
 
@@ -128,10 +126,14 @@ class FirebaseService: ObservableObject {
 
     /// 取消發布排休設定
     func unpublishVacationSettings(year: Int, month: Int) async throws {
+        guard let companyId = currentCompanyId else {
+            throw FirebaseError.invalidCompany
+        }
+
         print("🚫 [Boss] Unpublishing vacation settings for \(year)/\(month)")
 
         let query = db.collection("vacation_settings")
-            .whereField("company_id", isEqualTo: currentCompanyId)
+            .whereField("company_id", isEqualTo: companyId)
 
         let snapshot = try await query.getDocuments()
 
@@ -153,10 +155,14 @@ class FirebaseService: ObservableObject {
 
     /// 獲取排休設定
     func getVacationSettings(year: Int, month: Int) async throws -> VacationSettings? {
-        print("📋 [Service] Getting vacation settings for \(year)/\(month)")
+        guard let companyId = currentCompanyId else {
+            throw FirebaseError.invalidCompany
+        }
+
+        print("📋 [Service] Getting vacation settings for \(year)/\(month) in company: \(companyId)")
 
         let query = db.collection("vacation_settings")
-            .whereField("company_id", isEqualTo: currentCompanyId)
+            .whereField("company_id", isEqualTo: companyId)
 
         let snapshot = try await query.getDocuments()
         print("   - Found \(snapshot.documents.count) settings documents to check")
@@ -184,11 +190,15 @@ class FirebaseService: ObservableObject {
 
     /// 獲取員工排休申請
     func getVacationRequests(year: Int, month: Int) async throws -> [EmployeeVacation] {
-        print("📝 [Boss] Getting vacation requests for \(year)/\(month)")
+        guard let companyId = currentCompanyId else {
+            throw FirebaseError.invalidCompany
+        }
 
-        // 簡化查詢：只用 company_id
+        print("📝 [Boss] Getting vacation requests for \(year)/\(month) in company: \(companyId)")
+
+        // 查詢該公司的所有排休申請
         let query = db.collection("vacation_requests")
-            .whereField("company_id", isEqualTo: currentCompanyId)
+            .whereField("company_id", isEqualTo: companyId)
 
         let snapshot = try await query.getDocuments()
         print("   - Found \(snapshot.documents.count) request documents to check")
@@ -206,7 +216,6 @@ class FirebaseService: ObservableObject {
                 }
             } catch {
                 print("❌ [Boss] Failed to decode request document \(index): \(error)")
-                // 跳過有問題的文檔，不讓它影響整個載入過程
                 continue
             }
         }
@@ -221,17 +230,21 @@ class FirebaseService: ObservableObject {
 
     /// 審核排休申請
     func reviewVacationRequest(requestId: String, status: String) async throws {
+        guard let userId = currentUserId else {
+            throw FirebaseError.userNotFound
+        }
+
         print("✏️ [Boss] Reviewing request \(requestId) -> \(status)")
         try await db.collection("vacation_requests").document(requestId).updateData([
             "status": status,
             "reviewed_at": Timestamp(),
-            "reviewed_by": currentUserId,
+            "reviewed_by": userId,
             "updated_at": Timestamp()
         ])
         print("✅ [Boss] Successfully updated request status")
     }
 
-    // MARK: - Employee 功能
+    // MARK: - Employee 功能 (保持現有，但使用動態 ID)
 
     /// 提交排休申請
     func submitVacationRequest(
@@ -242,6 +255,11 @@ class FirebaseService: ObservableObject {
         vacationDates: Set<YearMonthDay>,
         note: String
     ) async throws {
+        guard let companyId = currentCompanyId,
+              let userId = currentUserId else {
+            throw FirebaseError.userNotFound
+        }
+
         let dateStrings = vacationDates.map { date in
             String(format: "%04d-%02d-%02d", date.year, date.month, date.day)
         }
@@ -251,12 +269,12 @@ class FirebaseService: ObservableObject {
         print("   - Period: \(year)/\(month)")
         print("   - Dates: \(dateStrings.joined(separator: ", "))")
         print("   - Note: \(note)")
-        print("   - Company ID: \(currentCompanyId)")
-        print("   - User ID: \(currentUserId)")
+        print("   - Company ID: \(companyId)")
+        print("   - User ID: \(userId)")
 
         let request = FirebaseVacationRequest(
-            companyId: currentCompanyId,
-            userId: currentUserId,
+            companyId: companyId,
+            userId: userId,
             employeeName: employeeName,
             employeeId: employeeId,
             targetYear: year,
@@ -277,12 +295,17 @@ class FirebaseService: ObservableObject {
 
     /// 獲取員工自己的排休申請
     func getMyVacationRequests(year: Int, month: Int) async throws -> [EmployeeVacation] {
+        guard let companyId = currentCompanyId,
+              let userId = currentUserId else {
+            throw FirebaseError.userNotFound
+        }
+
         print("📝 [Employee] Getting my vacation requests for \(year)/\(month)")
 
-        // 簡化查詢：只用 company_id 和 user_id
+        // 查詢該用戶的排休申請
         let query = db.collection("vacation_requests")
-            .whereField("company_id", isEqualTo: currentCompanyId)
-            .whereField("user_id", isEqualTo: currentUserId)
+            .whereField("company_id", isEqualTo: companyId)
+            .whereField("user_id", isEqualTo: userId)
 
         let snapshot = try await query.getDocuments()
         print("   - Found \(snapshot.documents.count) my request documents to check")
@@ -301,7 +324,6 @@ class FirebaseService: ObservableObject {
                 }
             } catch {
                 print("❌ [Employee] Failed to decode my request document \(index): \(error)")
-                // 跳過有問題的文檔
                 continue
             }
         }
@@ -316,11 +338,15 @@ class FirebaseService: ObservableObject {
 
     /// 檢查排休設定是否已發布 (詳細除錯版)
     func isVacationPublished(year: Int, month: Int) async throws -> Bool {
-        print("🔍 [Employee] Checking if vacation is published for \(year)/\(month)")
+        guard let companyId = currentCompanyId else {
+            throw FirebaseError.invalidCompany
+        }
 
-        // 🔥 修復：直接查詢所有設定，不先過濾 is_published
+        print("🔍 [Employee] Checking if vacation is published for \(year)/\(month) in company: \(companyId)")
+
+        // 直接查詢所有設定，不先過濾 is_published
         let query = db.collection("vacation_settings")
-            .whereField("company_id", isEqualTo: currentCompanyId)
+            .whereField("company_id", isEqualTo: companyId)
 
         let snapshot = try await query.getDocuments()
         print("   - Found \(snapshot.documents.count) total settings documents")
@@ -353,6 +379,99 @@ class FirebaseService: ObservableObject {
         return false
     }
 
+    // MARK: - 🔥 新增：公司和員工管理功能
+
+    /// 創建公司
+    func createCompany(name: String, ownerId: String) async throws -> (companyId: String, inviteCode: String) {
+        let inviteCode = generateInviteCode()
+
+        let companyData: [String: Any] = [
+            "name": name,
+            "owner_id": ownerId,
+            "invite_code": inviteCode,
+            "max_employees": 50,
+            "timezone": "Asia/Taipei",
+            "created_at": Timestamp(),
+            "updated_at": Timestamp()
+        ]
+
+        let docRef = try await db.collection("companies").addDocument(data: companyData)
+        print("✅ [Service] Created company: \(docRef.documentID) with invite code: \(inviteCode)")
+
+        return (docRef.documentID, inviteCode)
+    }
+
+    /// 驗證邀請碼並返回公司 ID
+    func validateInviteCode(_ inviteCode: String) async throws -> String? {
+        print("🔍 [Service] Validating invite code: \(inviteCode)")
+
+        let query = db.collection("companies").whereField("invite_code", isEqualTo: inviteCode)
+        let snapshot = try await query.getDocuments()
+
+        if let companyDoc = snapshot.documents.first {
+            print("✅ [Service] Valid invite code, company ID: \(companyDoc.documentID)")
+            return companyDoc.documentID
+        } else {
+            print("❌ [Service] Invalid invite code")
+            return nil
+        }
+    }
+
+    /// 生成員工編號
+    func generateEmployeeId(companyId: String) async throws -> String {
+        let query = db.collection("users")
+            .whereField("company_id", isEqualTo: companyId)
+            .whereField("role", isEqualTo: UserRole.employee.rawValue)
+        let snapshot = try await query.getDocuments()
+
+        let employeeCount = snapshot.documents.count + 1
+        let employeeId = String(format: "EMP%03d", employeeCount)
+
+        print("📋 [Service] Generated employee ID: \(employeeId) (total employees: \(employeeCount))")
+        return employeeId
+    }
+
+    /// 獲取公司員工列表 (Boss 功能)
+    func getCompanyEmployees() async throws -> [User] {
+        guard let companyId = currentCompanyId else {
+            throw FirebaseError.invalidCompany
+        }
+
+        print("👥 [Boss] Getting company employees for: \(companyId)")
+
+        let query = db.collection("users").whereField("company_id", isEqualTo: companyId)
+        let snapshot = try await query.getDocuments()
+
+        var employees: [User] = []
+
+        for document in snapshot.documents {
+            do {
+                let user = try User.from(data: document.data(), uid: document.documentID)
+                employees.append(user)
+            } catch {
+                print("❌ [Boss] Failed to decode employee document \(document.documentID): \(error)")
+            }
+        }
+
+        print("✅ [Boss] Successfully loaded \(employees.count) employees")
+        return employees.sorted { $0.name < $1.name }
+    }
+
+    /// 更新員工資料 (Boss 功能)
+    func updateEmployee(employeeId: String, updateData: [String: Any]) async throws {
+        guard UserManager.shared.currentRole == .boss else {
+            throw FirebaseError.permissionDenied
+        }
+
+        print("✏️ [Boss] Updating employee: \(employeeId)")
+
+        var data = updateData
+        data["updated_at"] = Timestamp()
+
+        try await db.collection("users").document(employeeId).updateData(data)
+        print("✅ [Boss] Successfully updated employee")
+    }
+
     // MARK: - 工具方法
 
     /// 獲取排休申請文檔 ID
@@ -361,10 +480,14 @@ class FirebaseService: ObservableObject {
         year: Int,
         month: Int
     ) async throws -> String? {
+        guard let companyId = currentCompanyId else {
+            throw FirebaseError.invalidCompany
+        }
+
         print("🔍 [Service] Getting request ID for employee \(employeeId) in \(year)/\(month)")
 
         let query = db.collection("vacation_requests")
-            .whereField("company_id", isEqualTo: currentCompanyId)
+            .whereField("company_id", isEqualTo: companyId)
             .whereField("employee_id", isEqualTo: employeeId)
 
         let snapshot = try await query.getDocuments()
@@ -417,17 +540,26 @@ class FirebaseService: ObservableObject {
 
     /// 內部方法：更新申請狀態
     private func updateRequestStatus(requestId: String, status: String) async throws {
+        guard let userId = currentUserId else {
+            throw FirebaseError.userNotFound
+        }
+
         print("✏️ [Service] Updating request \(requestId) -> \(status)")
         try await db.collection("vacation_requests").document(requestId).updateData([
             "status": status,
             "reviewed_at": Timestamp(),
-            "reviewed_by": currentUserId,
+            "reviewed_by": userId,
             "updated_at": Timestamp()
         ])
         print("✅ [Service] Successfully updated request status")
     }
 
-    // MARK: - 除錯工具
+    private func generateInviteCode() -> String {
+        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return String((0..<6).map { _ in chars.randomElement()! })
+    }
+
+    // MARK: - 除錯工具 (保持現有)
 
     /// 列出所有排休設定（除錯用）
     func debugListAllVacationSettings() async {
@@ -490,11 +622,16 @@ class FirebaseService: ObservableObject {
 
     /// 強制重新發布（除錯用）
     func debugForcePublish(year: Int, month: Int) async {
+        guard let companyId = currentCompanyId else {
+            print("❌ [Debug] No current company")
+            return
+        }
+
         print("🔧 [Debug] Force publishing vacation for \(year)/\(month)")
 
         do {
             let query = db.collection("vacation_settings")
-                .whereField("company_id", isEqualTo: currentCompanyId)
+                .whereField("company_id", isEqualTo: companyId)
 
             let snapshot = try await query.getDocuments()
 
@@ -520,7 +657,7 @@ class FirebaseService: ObservableObject {
     }
 }
 
-// MARK: - Error Handling Extensions
+// MARK: - Error Handling Extensions (保持現有)
 extension FirebaseService {
     func handleFirebaseError(_ error: Error) -> FirebaseError {
         if let error = error as? FirebaseError {

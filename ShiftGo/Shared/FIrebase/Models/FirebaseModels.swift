@@ -2,20 +2,23 @@
 //  FirebaseModels.swift
 //  ShiftGo
 //
-//  Created by Doris Wen on 2025/8/29.
+//  Updated by Doris Wen on 2025/9/1.
 //
 
 import Foundation
 import FirebaseFirestore
 
-// MARK: - 使用者模型
+// MARK: - 使用者模型 (擴展現有)
 struct User: Codable, Identifiable {
     @DocumentID var id: String?
     let email: String
     let name: String
     let role: String // "employee" 或 "boss"
-    let companyId: String
-    let employeeId: String? // 員工編號，只有員工需要
+    let companyId: String?  // 🔥 新增：可選，新註冊用戶可能還沒加入公司
+    let employeeId: String?
+    let isActive: Bool      // 🔥 新增：員工是否在職
+    let hourlyRate: Double  // 🔥 新增：時薪（用於薪資計算）
+    let employmentType: String // 🔥 新增：employment type ("full_time" 或 "part_time")
     let createdAt: Timestamp
     let updatedAt: Timestamp
 
@@ -26,27 +29,140 @@ struct User: Codable, Identifiable {
         case role
         case companyId = "company_id"
         case employeeId = "employee_id"
+        case isActive = "is_active"
+        case hourlyRate = "hourly_rate"
+        case employmentType = "employment_type"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
+
+    // 🔥 新增：轉換為本地 UserRole
+    var userRole: UserRole {
+        return UserRole(rawValue: role) ?? .employee
+    }
+
+    // 🔥 新增：是否為老闆
+    var isBoss: Bool {
+        return role == UserRole.boss.rawValue
+    }
+
+    // 🔥 新增：顯示用的員工類型
+    var employmentTypeDisplay: String {
+        switch employmentType {
+        case "full_time":
+            return "正職"
+        case "part_time":
+            return "兼職"
+        default:
+            return "兼職"
+        }
+    }
+
+    // 🔥 新增：靜態方法創建訪客用戶
+    static func guestUser() -> User {
+        return User(
+            id: "guest",
+            email: "guest@demo.com",
+            name: "訪客用戶",
+            role: UserRole.employee.rawValue,
+            companyId: "demo_company",
+            employeeId: "GUEST001",
+            isActive: true,
+            hourlyRate: 160.0,
+            employmentType: "part_time",
+            createdAt: Timestamp(),
+            updatedAt: Timestamp()
+        )
+    }
+
+    // 🔥 新增：從 Firebase 資料建立 User
+    static func from(data: [String: Any], uid: String) throws -> User {
+        guard let email = data["email"] as? String,
+              let name = data["name"] as? String,
+              let role = data["role"] as? String,
+              let createdAt = data["created_at"] as? Timestamp,
+              let updatedAt = data["updated_at"] as? Timestamp else {
+            throw FirebaseError.invalidUserData
+        }
+
+        return User(
+            id: uid,
+            email: email,
+            name: name,
+            role: role,
+            companyId: data["company_id"] as? String,
+            employeeId: data["employee_id"] as? String,
+            isActive: data["is_active"] as? Bool ?? true,
+            hourlyRate: data["hourly_rate"] as? Double ?? 160.0,
+            employmentType: data["employment_type"] as? String ?? "part_time",
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+    }
 }
 
-// MARK: - 公司模型
+// MARK: - 公司模型 (擴展現有)
 struct Company: Codable, Identifiable {
     @DocumentID var id: String?
     let name: String
+    let ownerId: String      // 🔥 新增：老闆的 user ID
+    let inviteCode: String   // 🔥 新增：邀請碼
+    let maxEmployees: Int    // 🔥 新增：員工人數上限
+    let timezone: String     // 🔥 新增：時區設定
     let createdAt: Timestamp
     let updatedAt: Timestamp
 
     enum CodingKeys: String, CodingKey {
         case id
         case name
+        case ownerId = "owner_id"
+        case inviteCode = "invite_code"
+        case maxEmployees = "max_employees"
+        case timezone
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
+
+    // 🔥 新增：創建示範公司
+    static func demoCompany() -> Company {
+        return Company(
+            id: "demo_company",
+            name: "示範咖啡廳",
+            ownerId: "demo_owner",
+            inviteCode: "DEMO01",
+            maxEmployees: 5,
+            timezone: "Asia/Taipei",
+            createdAt: Timestamp(),
+            updatedAt: Timestamp()
+        )
+    }
+
+    // 🔥 新增：從 Firebase 資料建立 Company
+    static func from(data: [String: Any], id: String) throws -> Company {
+        guard let name = data["name"] as? String,
+              let ownerId = data["owner_id"] as? String,
+              let inviteCode = data["invite_code"] as? String,
+              let maxEmployees = data["max_employees"] as? Int,
+              let timezone = data["timezone"] as? String,
+              let createdAt = data["created_at"] as? Timestamp,
+              let updatedAt = data["updated_at"] as? Timestamp else {
+            throw FirebaseError.invalidCompanyData
+        }
+
+        return Company(
+            id: id,
+            name: name,
+            ownerId: ownerId,
+            inviteCode: inviteCode,
+            maxEmployees: maxEmployees,
+            timezone: timezone,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+    }
 }
 
-// MARK: - 排休設定模型 (修復版)
+// MARK: - 排休設定模型 (保持現有)
 struct FirebaseVacationSettings: Codable, Identifiable {
     @DocumentID var id: String?
     let companyId: String
@@ -94,7 +210,7 @@ struct FirebaseVacationSettings: Codable, Identifiable {
     }
 }
 
-// MARK: - 排休申請模型 (修復版 - 添加容錯處理)
+// MARK: - 排休申請模型 (保持現有 - 添加容錯處理)
 struct FirebaseVacationRequest: Codable, Identifiable {
     @DocumentID var id: String?
     let companyId: String
@@ -178,7 +294,55 @@ struct FirebaseVacationRequest: Codable, Identifiable {
     }
 }
 
-// MARK: - 轉換擴展
+// MARK: - 🔥 新增：員工統計模型
+struct CompanyStats {
+    let totalEmployees: Int
+    let activeEmployees: Int
+    let fullTimeEmployees: Int
+    let partTimeEmployees: Int
+    let averageHourlyRate: Double
+
+    init(totalEmployees: Int = 0, activeEmployees: Int = 0, fullTimeEmployees: Int = 0,
+         partTimeEmployees: Int = 0, averageHourlyRate: Double = 0) {
+        self.totalEmployees = totalEmployees
+        self.activeEmployees = activeEmployees
+        self.fullTimeEmployees = fullTimeEmployees
+        self.partTimeEmployees = partTimeEmployees
+        self.averageHourlyRate = averageHourlyRate
+    }
+}
+
+// MARK: - 🔥 新增：員工更新資料結構
+struct EmployeeUpdateData {
+    let name: String?
+    let hourlyRate: Double?
+    let employmentType: EmploymentType?
+    let isActive: Bool?
+
+    init(name: String? = nil, hourlyRate: Double? = nil, employmentType: EmploymentType? = nil, isActive: Bool? = nil) {
+        self.name = name
+        self.hourlyRate = hourlyRate
+        self.employmentType = employmentType
+        self.isActive = isActive
+    }
+}
+
+// MARK: - 🔥 新增：員工類型枚舉
+enum EmploymentType: String, CaseIterable {
+    case fullTime = "full_time"
+    case partTime = "part_time"
+
+    var displayName: String {
+        switch self {
+        case .fullTime:
+            return "正職"
+        case .partTime:
+            return "兼職"
+        }
+    }
+}
+
+// MARK: - 轉換擴展 (保持現有)
 extension FirebaseVacationRequest {
     // 轉換成本地的 EmployeeVacation 模型
     func toEmployeeVacation() -> EmployeeVacation {
@@ -264,7 +428,7 @@ extension VacationSettings {
     }
 }
 
-// MARK: - 錯誤類型
+// MARK: - 錯誤類型 (擴展現有)
 enum FirebaseError: LocalizedError {
     case userNotFound
     case invalidCompany
@@ -272,6 +436,14 @@ enum FirebaseError: LocalizedError {
     case vacationSettingsNotFound
     case networkError(String)
     case unknown(String)
+    // 🔥 新增身份驗證錯誤
+    case invalidEmail
+    case weakPassword
+    case emailAlreadyInUse
+    case invalidCredentials
+    case invalidInviteCode
+    case invalidUserData
+    case invalidCompanyData
 
     var errorDescription: String? {
         switch self {
@@ -287,6 +459,49 @@ enum FirebaseError: LocalizedError {
             return "網路錯誤：\(message)"
         case .unknown(let message):
             return "未知錯誤：\(message)"
+        // 🔥 新增錯誤描述
+        case .invalidEmail:
+            return "無效的電子郵件格式"
+        case .weakPassword:
+            return "密碼強度不足，請使用至少6個字符"
+        case .emailAlreadyInUse:
+            return "此電子郵件已被註冊"
+        case .invalidCredentials:
+            return "電子郵件或密碼錯誤"
+        case .invalidInviteCode:
+            return "無效的邀請碼"
+        case .invalidUserData:
+            return "用戶資料格式錯誤"
+        case .invalidCompanyData:
+            return "公司資料格式錯誤"
         }
+    }
+
+    // 🔥 新增：從錯誤轉換為 FirebaseError
+    static func from(_ error: Error) -> FirebaseError {
+        if let authError = error as? FirebaseError {
+            return authError
+        }
+
+        if let nsError = error as NSError? {
+            switch nsError.code {
+            case 17008: // FIRAuthErrorCodeInvalidEmail
+                return .invalidEmail
+            case 17026: // FIRAuthErrorCodeWeakPassword
+                return .weakPassword
+            case 17007: // FIRAuthErrorCodeEmailAlreadyInUse
+                return .emailAlreadyInUse
+            case 17009: // FIRAuthErrorCodeWrongPassword
+                return .invalidCredentials
+            case 17011: // FIRAuthErrorCodeUserNotFound
+                return .userNotFound
+            case 17020: // FIRAuthErrorCodeNetworkError
+                return .networkError(nsError.localizedDescription)
+            default:
+                return .unknown(nsError.localizedDescription)
+            }
+        }
+
+        return .unknown(error.localizedDescription)
     }
 }

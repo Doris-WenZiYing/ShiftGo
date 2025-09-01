@@ -16,23 +16,25 @@ struct MoreView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    // 用戶角色信息
+                    // 🔥 用戶資訊區域 (更新為使用真實用戶資料)
                     UserInfoSection()
 
-                    // 根據角色顯示不同的功能分組
-                    if userManager.currentRole == .boss {
-                        BossSettingsSection()
-                    } else {
-                        EmployeeSettingsSection()
+                    // 🔥 根據角色和登入狀態顯示不同的功能分組
+                    if userManager.isLoggedIn {
+                        if userManager.currentRole == .boss {
+                            BossSettingsSection()
+                        } else {
+                            EmployeeSettingsSection()
+                        }
                     }
 
-                    // Preferences 分組
+                    // Preferences 分組 (保持現有)
                     PreferencesSection(themeManager: themeManager)
 
-                    // Support 分組
+                    // Support 分組 (保持現有)
                     SupportSection()
 
-                    // 登出按鈕
+                    // 🔥 登出按鈕 (更新為使用新的 UserManager)
                     LogoutSection()
 
                     Spacer()
@@ -43,6 +45,7 @@ struct MoreView: View {
     }
 }
 
+// MARK: - 🔥 更新的用戶資訊區域
 struct UserInfoSection: View {
     @EnvironmentObject var userManager: UserManager
 
@@ -50,33 +53,49 @@ struct UserInfoSection: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 0) {
                 HStack {
-                    Image(systemName: userManager.currentRole == .boss ? "person.badge.key.fill" : "person.fill")
+                    // 🔥 根據用戶狀態顯示不同圖標
+                    Image(systemName: getUserIcon())
                         .font(.title)
-                        .foregroundColor(userManager.currentRole == .boss ? .purple : .blue)
+                        .foregroundColor(getUserIconColor())
                         .frame(width: 50)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Current Role")
+                        Text(getUserStatusTitle())
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text(userManager.currentRole.displayName)
+
+                        Text(getUserDisplayName())
                             .font(.title3)
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
+
+                        // 🔥 顯示公司資訊
+                        if let company = userManager.currentCompany {
+                            Text(company.name)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else if userManager.isGuest {
+                            Text("訪客模式")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
                     }
 
                     Spacer()
 
-                    Button(action: {
-                        userManager.switchRole()
-                    }) {
-                        Text("Switch")
-                            .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
+                    // 🔥 角色切換按鈕 (只在訪客模式顯示)
+                    if userManager.isGuest {
+                        Button(action: {
+                            userManager.switchRole()
+                        }) {
+                            Text("Switch")
+                                .font(.caption)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                        }
                     }
                 }
                 .padding()
@@ -86,9 +105,57 @@ struct UserInfoSection: View {
         }
         .padding(.horizontal)
     }
+
+    // MARK: - Helper Methods
+    private func getUserIcon() -> String {
+        if userManager.isGuest {
+            return "person.crop.circle.dashed"
+        } else {
+            switch userManager.currentRole {
+            case .boss:
+                return "person.badge.key.fill"
+            case .employee:
+                return "person.fill"
+            }
+        }
+    }
+
+    private func getUserIconColor() -> Color {
+        if userManager.isGuest {
+            return .orange
+        } else {
+            switch userManager.currentRole {
+            case .boss:
+                return .purple
+            case .employee:
+                return .blue
+            }
+        }
+    }
+
+    private func getUserStatusTitle() -> String {
+        if userManager.isGuest {
+            return "訪客模式"
+        } else {
+            switch userManager.currentRole {
+            case .boss:
+                return "管理者"
+            case .employee:
+                return "員工"
+            }
+        }
+    }
+
+    private func getUserDisplayName() -> String {
+        if let user = userManager.currentUser {
+            return user.name
+        } else {
+            return "未登入"
+        }
+    }
 }
 
-// Boss 專用設定分組
+// Boss 專用設定分組 (保持現有)
 struct BossSettingsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -102,6 +169,8 @@ struct BossSettingsSection: View {
                 SettingRow(icon: "chart.line.uptrend.xyaxis", title: "Analytics & Reports", iconColor: .purple)
                 SettingDivider()
                 SettingRow(icon: "bell.badge.fill", title: "Notifications", iconColor: .red)
+                SettingDivider()
+                SettingRow(icon: "building.2.fill", title: "Company Settings", iconColor: .orange)
             }
             .background(Color(.systemGray6))
             .cornerRadius(12)
@@ -110,7 +179,7 @@ struct BossSettingsSection: View {
     }
 }
 
-// Employee 專用設定分組
+// Employee 專用設定分組 (保持現有)
 struct EmployeeSettingsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -132,7 +201,7 @@ struct EmployeeSettingsSection: View {
     }
 }
 
-// 登出分組
+// 🔥 更新的登出分組
 struct LogoutSection: View {
     @EnvironmentObject var userManager: UserManager
     @State private var showingLogoutAlert = false
@@ -148,7 +217,7 @@ struct LogoutSection: View {
                         .foregroundColor(.red)
                         .frame(width: 30)
 
-                    Text("Logout")
+                    Text(getLogoutButtonText())
                         .font(.body)
                         .foregroundColor(.red)
 
@@ -161,18 +230,59 @@ struct LogoutSection: View {
             }
         }
         .padding(.horizontal)
-        .alert("Logout", isPresented: $showingLogoutAlert) {
+        .alert(getLogoutAlertTitle(), isPresented: $showingLogoutAlert) {
             Button("Cancel", role: .cancel) { }
-            Button("Logout", role: .destructive) {
-                userManager.logout()
+            Button(getLogoutConfirmText(), role: .destructive) {
+                handleLogout()
             }
         } message: {
-            Text("Are you sure you want to logout?")
+            Text(getLogoutAlertMessage())
+        }
+    }
+
+    // MARK: - Helper Methods
+    private func getLogoutButtonText() -> String {
+        if userManager.isGuest {
+            return "Exit Guest Mode"
+        } else {
+            return "Logout"
+        }
+    }
+
+    private func getLogoutAlertTitle() -> String {
+        if userManager.isGuest {
+            return "Exit Guest Mode"
+        } else {
+            return "Logout"
+        }
+    }
+
+    private func getLogoutConfirmText() -> String {
+        if userManager.isGuest {
+            return "Exit"
+        } else {
+            return "Logout"
+        }
+    }
+
+    private func getLogoutAlertMessage() -> String {
+        if userManager.isGuest {
+            return "Are you sure you want to exit guest mode?"
+        } else {
+            return "Are you sure you want to logout?"
+        }
+    }
+
+    private func handleLogout() {
+        do {
+            try userManager.signOut()  // 🔥 使用新的 signOut 方法
+        } catch {
+            print("Logout error: \(error)")
         }
     }
 }
 
-// Preferences 分組組件
+// Preferences 分組組件 (保持現有)
 struct PreferencesSection: View {
     @ObservedObject var themeManager: ThemeManager
 
@@ -198,7 +308,7 @@ struct PreferencesSection: View {
     }
 }
 
-// Support 分組組件
+// Support 分組組件 (保持現有)
 struct SupportSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -220,7 +330,7 @@ struct SupportSection: View {
     }
 }
 
-// Section 標題組件
+// Section 標題組件 (保持現有)
 struct SectionHeader: View {
     let title: String
 
@@ -237,7 +347,7 @@ struct SectionHeader: View {
     }
 }
 
-// Dark Mode 專用行組件
+// Dark Mode 專用行組件 (保持現有)
 struct DarkModeRow: View {
     @ObservedObject var themeManager: ThemeManager
 
@@ -269,7 +379,7 @@ struct DarkModeRow: View {
     }
 }
 
-// 設定分隔線組件
+// 設定分隔線組件 (保持現有)
 struct SettingDivider: View {
     var body: some View {
         Divider()
@@ -277,18 +387,24 @@ struct SettingDivider: View {
     }
 }
 
-// 版本信息組件
+// 版本信息組件 (保持現有)
 struct VersionInfo: View {
     var body: some View {
-        Text("Version 2025.22")
-            .font(.caption)
-            .foregroundColor(.secondary)
-            .padding(.bottom, 20)
+        VStack(spacing: 4) {
+            Text("ShiftGo")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Text("Version 1.0.0")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.bottom, 20)
     }
 }
 
 #Preview {
     MoreView()
         .environmentObject(ThemeManager())
-        .environmentObject(UserManager())
+        .environmentObject(UserManager.shared)
 }
