@@ -143,7 +143,7 @@ struct QuickSelectOption {
 
         // 找出該月所有的週末
         let calendar = Calendar.current
-        var date = calendar.date(from: DateComponents(year: year, month: month, day: 1))!
+        let date = calendar.date(from: DateComponents(year: year, month: month, day: 1))!
         let range = calendar.range(of: .day, in: .month, for: date)!
 
         var weekends: [YearMonthDay] = []

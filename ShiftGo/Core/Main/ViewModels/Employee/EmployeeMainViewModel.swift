@@ -234,9 +234,9 @@ class EmployeeMainViewModel: ObservableObject {
 
         print("🔄 [Employee] Starting to load vacation data for \(year)/\(month)")
 
-        async let settingsTask = loadVacationSettings(year: year, month: month)
-        async let requestsTask = loadMyVacationRequests(year: year, month: month)
-        async let publishedTask = checkVacationPublished(year: year, month: month)
+        async let settingsTask: () = loadVacationSettings(year: year, month: month)
+        async let requestsTask: () = loadMyVacationRequests(year: year, month: month)
+        async let publishedTask: () = checkVacationPublished(year: year, month: month)
 
         await settingsTask
         await requestsTask

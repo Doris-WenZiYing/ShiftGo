@@ -303,8 +303,8 @@ class BossMainViewModel: ObservableObject {
             isLoading = true
         }
 
-        async let settingsTask = loadVacationSettings(year: year, month: month)
-        async let requestsTask = loadVacationRequests(year: year, month: month)
+        async let settingsTask: () = loadVacationSettings(year: year, month: month)
+        async let requestsTask: () = loadVacationRequests(year: year, month: month)
 
         await settingsTask
         await requestsTask
