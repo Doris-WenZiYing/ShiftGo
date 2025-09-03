@@ -47,28 +47,6 @@ class BossMainViewModel: ObservableObject {
         return grouped
     }
 
-    enum ToastType {
-        case success
-        case error
-        case info
-
-        var icon: String {
-            switch self {
-            case .success: return "checkmark.circle.fill"
-            case .error: return "xmark.circle.fill"
-            case .info: return "info.circle.fill"
-            }
-        }
-
-        var color: Color {
-            switch self {
-            case .success: return .green
-            case .error: return .red
-            case .info: return .blue
-            }
-        }
-    }
-
     init() {
         // 載入當前月份資料
         let now = Date()

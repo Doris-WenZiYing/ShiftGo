@@ -28,28 +28,6 @@ class EmployeeMainViewModel: ObservableObject {
     private let employeeName = "王小明"
     private let employeeId = "E001"
 
-    enum ToastType {
-        case success
-        case error
-        case info
-
-        var icon: String {
-            switch self {
-            case .success: return "checkmark.circle.fill"
-            case .error: return "xmark.circle.fill"
-            case .info: return "info.circle.fill"
-            }
-        }
-
-        var color: Color {
-            switch self {
-            case .success: return .green
-            case .error: return .red
-            case .info: return .blue
-            }
-        }
-    }
-
     // MARK: - Public Methods
 
     /// 載入特定月份的資料
