@@ -8,22 +8,21 @@
 import Foundation
 import FirebaseFirestore
 
-// MARK: - 使用者模型 (擴展現有)
+// MARK: - User
 struct User: Codable, Identifiable {
-    @DocumentID var id: String?
+    var id: String = ""  // 手動管理 ID，避免 @DocumentID 警告
     let email: String
     let name: String
     let role: String // "employee" 或 "boss"
-    let companyId: String?  // 🔥 新增：可選，新註冊用戶可能還沒加入公司
+    let companyId: String?
     let employeeId: String?
-    let isActive: Bool      // 🔥 新增：員工是否在職
-    let hourlyRate: Double  // 🔥 新增：時薪（用於薪資計算）
-    let employmentType: String // 🔥 新增：employment type ("full_time" 或 "part_time")
+    let isActive: Bool
+    let hourlyRate: Double
+    let employmentType: String
     let createdAt: Timestamp
     let updatedAt: Timestamp
 
     enum CodingKeys: String, CodingKey {
-        case id
         case email
         case name
         case role
@@ -34,19 +33,38 @@ struct User: Codable, Identifiable {
         case employmentType = "employment_type"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        // 注意：id 不在 CodingKeys 中，因為它由文檔 ID 設置
     }
 
-    // 🔥 新增：轉換為本地 UserRole
+    // 🔧 修復：自定義初始化器
+    init(id: String = "", email: String, name: String, role: String,
+         companyId: String? = nil, employeeId: String? = nil, isActive: Bool = true,
+         hourlyRate: Double = 160.0, employmentType: String = "part_time",
+         createdAt: Timestamp = Timestamp(), updatedAt: Timestamp = Timestamp()) {
+        self.id = id
+        self.email = email
+        self.name = name
+        self.role = role
+        self.companyId = companyId
+        self.employeeId = employeeId
+        self.isActive = isActive
+        self.hourlyRate = hourlyRate
+        self.employmentType = employmentType
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    // 轉換為本地 UserRole
     var userRole: UserRole {
         return UserRole(rawValue: role) ?? .employee
     }
 
-    // 🔥 新增：是否為老闆
+    // 是否為老闆
     var isBoss: Bool {
         return role == UserRole.boss.rawValue
     }
 
-    // 🔥 新增：顯示用的員工類型
+    // 顯示用的員工類型
     var employmentTypeDisplay: String {
         switch employmentType {
         case "full_time":
@@ -58,7 +76,7 @@ struct User: Codable, Identifiable {
         }
     }
 
-    // 🔥 新增：靜態方法創建訪客用戶
+    // 靜態方法創建訪客用戶
     static func guestUser() -> User {
         return User(
             id: "guest",
@@ -69,13 +87,11 @@ struct User: Codable, Identifiable {
             employeeId: "GUEST001",
             isActive: true,
             hourlyRate: 160.0,
-            employmentType: "part_time",
-            createdAt: Timestamp(),
-            updatedAt: Timestamp()
+            employmentType: "part_time"
         )
     }
 
-    // 🔥 新增：從 Firebase 資料建立 User
+    // 從 Firebase 資料建立 User
     static func from(data: [String: Any], uid: String) throws -> User {
         guard let email = data["email"] as? String,
               let name = data["name"] as? String,
@@ -86,7 +102,7 @@ struct User: Codable, Identifiable {
         }
 
         return User(
-            id: uid,
+            id: uid, // 使用文檔 ID
             email: email,
             name: name,
             role: role,
@@ -101,19 +117,19 @@ struct User: Codable, Identifiable {
     }
 }
 
-// MARK: - 公司模型 (擴展現有)
+// MARK: - 公司模型 (修復版)
 struct Company: Codable, Identifiable {
-    @DocumentID var id: String?
+    // 🔧 修復：手動管理 ID
+    var id: String = ""
     let name: String
-    let ownerId: String      // 🔥 新增：老闆的 user ID
-    let inviteCode: String   // 🔥 新增：邀請碼
-    let maxEmployees: Int    // 🔥 新增：員工人數上限
-    let timezone: String     // 🔥 新增：時區設定
+    let ownerId: String
+    let inviteCode: String
+    let maxEmployees: Int
+    let timezone: String
     let createdAt: Timestamp
     let updatedAt: Timestamp
 
     enum CodingKeys: String, CodingKey {
-        case id
         case name
         case ownerId = "owner_id"
         case inviteCode = "invite_code"
@@ -123,7 +139,20 @@ struct Company: Codable, Identifiable {
         case updatedAt = "updated_at"
     }
 
-    // 🔥 新增：創建示範公司
+    init(id: String = "", name: String, ownerId: String, inviteCode: String,
+         maxEmployees: Int = 5, timezone: String = "Asia/Taipei",
+         createdAt: Timestamp = Timestamp(), updatedAt: Timestamp = Timestamp()) {
+        self.id = id
+        self.name = name
+        self.ownerId = ownerId
+        self.inviteCode = inviteCode
+        self.maxEmployees = maxEmployees
+        self.timezone = timezone
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    // 創建示範公司
     static func demoCompany() -> Company {
         return Company(
             id: "demo_company",
@@ -131,13 +160,11 @@ struct Company: Codable, Identifiable {
             ownerId: "demo_owner",
             inviteCode: "DEMO01",
             maxEmployees: 5,
-            timezone: "Asia/Taipei",
-            createdAt: Timestamp(),
-            updatedAt: Timestamp()
+            timezone: "Asia/Taipei"
         )
     }
 
-    // 🔥 新增：從 Firebase 資料建立 Company
+    // 從 Firebase 資料建立 Company
     static func from(data: [String: Any], id: String) throws -> Company {
         guard let name = data["name"] as? String,
               let ownerId = data["owner_id"] as? String,
@@ -162,15 +189,16 @@ struct Company: Codable, Identifiable {
     }
 }
 
-// MARK: - 排休設定模型 (保持現有)
+// MARK: - 排休設定模型 (修復版)
 struct FirebaseVacationSettings: Codable, Identifiable {
-    @DocumentID var id: String?
+    // 🔧 修復：手動管理 ID
+    var id: String = ""
     let companyId: String
     let targetYear: Int
     let targetMonth: Int
     let maxDaysPerMonth: Int
     let maxDaysPerWeek: Int
-    let limitType: String // "weekly" 或 "monthly"
+    let limitType: String
     let deadline: Timestamp
     let isPublished: Bool
     let publishedAt: Timestamp?
@@ -178,7 +206,6 @@ struct FirebaseVacationSettings: Codable, Identifiable {
     let updatedAt: Timestamp
 
     enum CodingKeys: String, CodingKey {
-        case id
         case companyId = "company_id"
         case targetYear = "target_year"
         case targetMonth = "target_month"
@@ -192,10 +219,11 @@ struct FirebaseVacationSettings: Codable, Identifiable {
         case updatedAt = "updated_at"
     }
 
-    // 手動初始化器確保所有欄位都正確設置
-    init(companyId: String, targetYear: Int, targetMonth: Int, maxDaysPerMonth: Int,
-         maxDaysPerWeek: Int, limitType: String, deadline: Timestamp, isPublished: Bool,
-         publishedAt: Timestamp?, createdAt: Timestamp, updatedAt: Timestamp) {
+    init(id: String = "", companyId: String, targetYear: Int, targetMonth: Int,
+         maxDaysPerMonth: Int, maxDaysPerWeek: Int, limitType: String,
+         deadline: Timestamp, isPublished: Bool, publishedAt: Timestamp?,
+         createdAt: Timestamp = Timestamp(), updatedAt: Timestamp = Timestamp()) {
+        self.id = id
         self.companyId = companyId
         self.targetYear = targetYear
         self.targetMonth = targetMonth
@@ -210,26 +238,25 @@ struct FirebaseVacationSettings: Codable, Identifiable {
     }
 }
 
-// MARK: - 排休申請模型 (保持現有 - 添加容錯處理)
+// MARK: - 排休申請模型 (修復版)
 struct FirebaseVacationRequest: Codable, Identifiable {
-    @DocumentID var id: String?
+    var id: String = ""
     let companyId: String
     let userId: String
     let employeeName: String
     let employeeId: String
     let targetYear: Int
     let targetMonth: Int
-    let vacationDates: [String] // 格式: ["2025-08-15", "2025-08-16"]
+    let vacationDates: [String]
     let note: String
-    let status: String // "pending", "approved", "rejected"
+    let status: String
     let submitDate: Timestamp
     let reviewedAt: Timestamp?
-    let reviewedBy: String? // 審核者的 userId
+    let reviewedBy: String?
     let createdAt: Timestamp
     let updatedAt: Timestamp
 
     enum CodingKeys: String, CodingKey {
-        case id
         case companyId = "company_id"
         case userId = "user_id"
         case employeeName = "employee_name"
@@ -246,11 +273,12 @@ struct FirebaseVacationRequest: Codable, Identifiable {
         case updatedAt = "updated_at"
     }
 
-    // 手動初始化器
-    init(companyId: String, userId: String, employeeName: String, employeeId: String,
-         targetYear: Int, targetMonth: Int, vacationDates: [String], note: String,
-         status: String, submitDate: Timestamp, reviewedAt: Timestamp?,
-         reviewedBy: String?, createdAt: Timestamp, updatedAt: Timestamp) {
+    init(id: String = "", companyId: String, userId: String, employeeName: String,
+         employeeId: String, targetYear: Int, targetMonth: Int, vacationDates: [String],
+         note: String, status: String, submitDate: Timestamp = Timestamp(),
+         reviewedAt: Timestamp? = nil, reviewedBy: String? = nil,
+         createdAt: Timestamp = Timestamp(), updatedAt: Timestamp = Timestamp()) {
+        self.id = id
         self.companyId = companyId
         self.userId = userId
         self.employeeName = employeeName
@@ -267,7 +295,7 @@ struct FirebaseVacationRequest: Codable, Identifiable {
         self.updatedAt = updatedAt
     }
 
-    // 自定義解碼器 - 處理缺失欄位
+    // 自定義解碼器處理缺失欄位
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -280,7 +308,6 @@ struct FirebaseVacationRequest: Codable, Identifiable {
         // 可能缺失的欄位，提供默認值
         targetYear = try container.decodeIfPresent(Int.self, forKey: .targetYear) ?? 2025
         targetMonth = try container.decodeIfPresent(Int.self, forKey: .targetMonth) ?? 8
-
         vacationDates = try container.decodeIfPresent([String].self, forKey: .vacationDates) ?? []
         note = try container.decodeIfPresent(String.self, forKey: .note) ?? ""
         status = try container.decodeIfPresent(String.self, forKey: .status) ?? "pending"
@@ -294,7 +321,7 @@ struct FirebaseVacationRequest: Codable, Identifiable {
     }
 }
 
-// MARK: - 🔥 新增：員工統計模型
+// MARK: - 員工統計模型
 struct CompanyStats {
     let totalEmployees: Int
     let activeEmployees: Int
@@ -312,7 +339,7 @@ struct CompanyStats {
     }
 }
 
-// MARK: - 🔥 新增：員工更新資料結構
+// MARK: - 員工更新資料結構
 struct EmployeeUpdateData {
     let name: String?
     let hourlyRate: Double?
@@ -327,7 +354,7 @@ struct EmployeeUpdateData {
     }
 }
 
-// MARK: - 🔥 新增：員工類型枚舉
+// MARK: - 員工類型枚舉
 enum EmploymentType: String, CaseIterable {
     case fullTime = "full_time"
     case partTime = "part_time"
@@ -342,9 +369,8 @@ enum EmploymentType: String, CaseIterable {
     }
 }
 
-// MARK: - 轉換擴展 (保持現有)
+// MARK: - 轉換擴展
 extension FirebaseVacationRequest {
-    // 轉換成本地的 EmployeeVacation 模型
     func toEmployeeVacation() -> EmployeeVacation {
         let vacationStatus: EmployeeVacation.VacationRequestStatus
         switch status {
@@ -368,7 +394,6 @@ extension FirebaseVacationRequest {
 }
 
 extension FirebaseVacationSettings {
-    // 轉換成本地的 VacationSettings 模型
     func toVacationSettings() -> VacationSettings {
         let months = [
             1: "1月", 2: "2月", 3: "3月", 4: "4月",
@@ -391,17 +416,10 @@ extension FirebaseVacationSettings {
     }
 }
 
-// MARK: - 本地模型轉Firebase擴展 (修復版)
 extension VacationSettings {
     func toFirebaseVacationSettings(companyId: String) -> FirebaseVacationSettings {
         let monthNumber = getMonthNumber(from: targetMonth)
         let limitTypeString = limitType == .weekly ? "weekly" : "monthly"
-        let now = Timestamp()
-
-        print("🔄 Converting VacationSettings to Firebase:")
-        print("   - Target: \(targetYear)/\(monthNumber) (\(targetMonth))")
-        print("   - isPublished: \(isPublished)")
-        print("   - publishedAt: \(publishedAt?.description ?? "nil")")
 
         return FirebaseVacationSettings(
             companyId: companyId,
@@ -411,10 +429,8 @@ extension VacationSettings {
             maxDaysPerWeek: maxDaysPerWeek,
             limitType: limitTypeString,
             deadline: Timestamp(date: deadline),
-            isPublished: isPublished, // 確保這裡正確傳遞
-            publishedAt: publishedAt != nil ? Timestamp(date: publishedAt!) : nil,
-            createdAt: now,
-            updatedAt: now
+            isPublished: isPublished,
+            publishedAt: publishedAt != nil ? Timestamp(date: publishedAt!) : nil
         )
     }
 
@@ -428,7 +444,7 @@ extension VacationSettings {
     }
 }
 
-// MARK: - 錯誤類型 (擴展現有)
+// MARK: - 錯誤類型
 enum FirebaseError: LocalizedError {
     case userNotFound
     case invalidCompany
@@ -436,7 +452,6 @@ enum FirebaseError: LocalizedError {
     case vacationSettingsNotFound
     case networkError(String)
     case unknown(String)
-    // 🔥 新增身份驗證錯誤
     case invalidEmail
     case weakPassword
     case emailAlreadyInUse
@@ -459,7 +474,6 @@ enum FirebaseError: LocalizedError {
             return "網路錯誤：\(message)"
         case .unknown(let message):
             return "未知錯誤：\(message)"
-        // 🔥 新增錯誤描述
         case .invalidEmail:
             return "無效的電子郵件格式"
         case .weakPassword:
@@ -477,7 +491,6 @@ enum FirebaseError: LocalizedError {
         }
     }
 
-    // 🔥 新增：從錯誤轉換為 FirebaseError
     static func from(_ error: Error) -> FirebaseError {
         if let authError = error as? FirebaseError {
             return authError
@@ -485,17 +498,17 @@ enum FirebaseError: LocalizedError {
 
         if let nsError = error as NSError? {
             switch nsError.code {
-            case 17008: // FIRAuthErrorCodeInvalidEmail
+            case 17008:
                 return .invalidEmail
-            case 17026: // FIRAuthErrorCodeWeakPassword
+            case 17026:
                 return .weakPassword
-            case 17007: // FIRAuthErrorCodeEmailAlreadyInUse
+            case 17007:
                 return .emailAlreadyInUse
-            case 17009: // FIRAuthErrorCodeWrongPassword
+            case 17009:
                 return .invalidCredentials
-            case 17011: // FIRAuthErrorCodeUserNotFound
+            case 17011:
                 return .userNotFound
-            case 17020: // FIRAuthErrorCodeNetworkError
+            case 17020:
                 return .networkError(nsError.localizedDescription)
             default:
                 return .unknown(nsError.localizedDescription)

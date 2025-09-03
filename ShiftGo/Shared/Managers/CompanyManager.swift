@@ -68,10 +68,7 @@ class CompanyManager: ObservableObject {
             return
         }
 
-        guard let employeeId = employee.id else {
-            error = .employeeNotFound
-            return
-        }
+        let employeeId = employee.id
 
         isLoading = true
 

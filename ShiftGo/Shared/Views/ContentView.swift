@@ -11,31 +11,56 @@ struct ContentView: View {
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var userManager = UserManager.shared
 
+    // 🔥 新增：追蹤初始化狀態
+    @State private var isInitializing = true
+    @State private var initializationTimer: Timer?
+
     var body: some View {
         Group {
-            if userManager.isLoggedIn {
-                authenticatedView()
-                    .environmentObject(themeManager)
-                    .environmentObject(userManager)
+            if isInitializing {
+                // 🔥 顯示 Onboarding 畫面
+                OnboardingView()
             } else {
-                LoginView()  // 🔥 保持使用你現有的 LoginView，但會修改其功能
-                    .environmentObject(userManager)
+                // 原有的邏輯
+                if userManager.isLoggedIn {
+                    authenticatedView()
+                        .environmentObject(themeManager)
+                        .environmentObject(userManager)
+                } else {
+                    LoginView()
+                        .environmentObject(userManager)
+                }
             }
         }
         .preferredColorScheme(themeManager.preferredColorScheme)
+        .onAppear {
+            startInitializationProcess()
+        }
     }
 
-    // MARK: - 🔥 新增：已認證用戶的視圖邏輯
+    // MARK: - 🔥 初始化流程
+    private func startInitializationProcess() {
+        print("🚀 開始初始化流程")
+
+        // 設置最小顯示時間（避免閃爍）
+        let minimumDisplayTime: TimeInterval = 1.5
+
+        initializationTimer = Timer.scheduledTimer(withTimeInterval: minimumDisplayTime, repeats: false) { _ in
+            withAnimation(.easeInOut(duration: 0.5)) {
+                isInitializing = false
+            }
+            print("✅ 初始化完成")
+        }
+    }
+
+    // MARK: - 🔥 已認證用戶的視圖邏輯
     @ViewBuilder
     private func authenticatedView() -> some View {
         if userManager.isGuest {
-            // 訪客模式：顯示員工界面 + 限制提示
             guestModeView()
         } else if userManager.currentCompany != nil {
-            // 已加入組織：顯示主應用界面
             MainAppView()
         } else {
-            // 已登入但未加入組織：顯示組織設置界面
             CompanySetupView()
         }
     }
@@ -44,10 +69,7 @@ struct ContentView: View {
     @ViewBuilder
     private func guestModeView() -> some View {
         VStack(spacing: 0) {
-            // 訪客模式提示條
             guestModeHeader()
-
-            // 主應用界面（功能受限）
             MainAppView()
                 .overlay(
                     guestLimitationsOverlay(),
@@ -75,7 +97,7 @@ struct ContentView: View {
             Spacer()
 
             Button("註冊解鎖") {
-                try? userManager.signOut() // 退出訪客模式
+                try? userManager.signOut()
             }
             .font(.system(size: 12, weight: .semibold))
             .foregroundColor(.blue)
@@ -86,7 +108,7 @@ struct ContentView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(AppColors.Background.secondary(.light))
+        .background(Color(.systemGray6))
     }
 
     private func guestLimitationsOverlay() -> some View {
@@ -123,9 +145,6 @@ struct ContentView: View {
     }
 }
 
-// MARK: - 🔥 新增：組織設置視圖
-
-
 // MARK: - 主應用視圖 (保持現有結構)
 struct MainAppView: View {
     @EnvironmentObject var userManager: UserManager
@@ -141,7 +160,7 @@ struct MainAppView: View {
     }
 }
 
-// Employee 應用視圖 (保持現有)
+// Employee 應用視圖
 struct EmployeeAppView: View {
     @State private var selectedTab: EmployeeTab = .calendar
 
@@ -163,7 +182,7 @@ struct EmployeeAppView: View {
     }
 }
 
-// Boss 應用視圖 (保持現有)
+// Boss 應用視圖
 struct BossAppView: View {
     @State private var selectedTab: BossTab = .dashboard
 
@@ -186,6 +205,24 @@ struct BossAppView: View {
         }
     }
 }
+
+// MARK: - 4. 更新後的 UserManager 改善
+extension UserManager {
+    /// 🔥 檢查初始化是否完成
+    var isInitialized: Bool {
+        // 如果是訪客模式，立即視為已初始化
+        if isGuest { return true }
+
+        // 如果已登入，檢查是否有完整的用戶和公司資料
+        if isLoggedIn {
+            return currentUser != nil
+        }
+
+        // 未登入狀態也視為已初始化
+        return !isLoading
+    }
+}
+
 
 #Preview {
     ContentView()

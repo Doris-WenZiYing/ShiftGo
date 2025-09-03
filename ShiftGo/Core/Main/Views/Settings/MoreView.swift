@@ -6,35 +6,42 @@
 //
 
 import SwiftUI
+import Combine
 
 struct MoreView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var userManager: UserManager
     @Environment(\.colorScheme) var colorScheme
 
+    // 邀請碼相關狀態
+    @State private var organizationInviteCode = ""
+    @State private var isLoadingInviteCode = false
+    @State private var showingInviteCodeSheet = false
+    @State private var showingErrorAlert = false
+    @State private var errorMessage = ""
+
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    // 🔥 用戶資訊區域 (更新為使用真實用戶資料)
                     UserInfoSection()
 
-                    // 🔥 根據角色和登入狀態顯示不同的功能分組
                     if userManager.isLoggedIn {
                         if userManager.currentRole == .boss {
-                            BossSettingsSection()
+                            // 整合邀請碼的老闆設定區塊
+                            BossSettingsSection(
+                                inviteCode: $organizationInviteCode,
+                                isLoading: $isLoadingInviteCode,
+                                showingSheet: $showingInviteCodeSheet,
+                                loadInviteCode: loadInviteCode
+                            )
                         } else {
                             EmployeeSettingsSection()
                         }
                     }
 
-                    // Preferences 分組 (保持現有)
                     PreferencesSection(themeManager: themeManager)
-
-                    // Support 分組 (保持現有)
                     SupportSection()
-
-                    // 🔥 登出按鈕 (更新為使用新的 UserManager)
                     LogoutSection()
 
                     Spacer()
@@ -42,10 +49,60 @@ struct MoreView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingInviteCodeSheet) {
+            InviteCodeSheet(inviteCode: $organizationInviteCode)
+                .presentationDetents([.medium])
+        }
+        .alert("錯誤", isPresented: $showingErrorAlert) {
+            Button("確定") { }
+        } message: {
+            Text(errorMessage)
+        }
+        .onAppear {
+            if userManager.isLoggedIn && userManager.currentRole == .boss {
+                preloadInviteCode()
+            }
+        }
+    }
+
+    // MARK: - 邀請碼方法
+    private func preloadInviteCode() {
+        guard let currentCompany = userManager.currentCompany else { return }
+        organizationInviteCode = currentCompany.inviteCode
+    }
+
+    private func loadInviteCode() {
+        guard userManager.isLoggedIn else {
+            showError("請先登入後再試")
+            return
+        }
+
+        guard userManager.currentRole == .boss else {
+            showError("只有管理者可以查看邀請碼")
+            return
+        }
+
+        guard let currentCompany = userManager.currentCompany else {
+            showError("找不到組織資訊")
+            return
+        }
+
+        organizationInviteCode = currentCompany.inviteCode
+
+        if !organizationInviteCode.isEmpty {
+            showingInviteCodeSheet = true
+        } else {
+            showError("邀請碼載入失敗")
+        }
+    }
+
+    private func showError(_ message: String) {
+        errorMessage = message
+        showingErrorAlert = true
     }
 }
 
-// MARK: - 🔥 更新的用戶資訊區域
+// MARK: - 用戶資訊區域
 struct UserInfoSection: View {
     @EnvironmentObject var userManager: UserManager
 
@@ -53,7 +110,6 @@ struct UserInfoSection: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 0) {
                 HStack {
-                    // 🔥 根據用戶狀態顯示不同圖標
                     Image(systemName: getUserIcon())
                         .font(.title)
                         .foregroundColor(getUserIconColor())
@@ -69,13 +125,12 @@ struct UserInfoSection: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
 
-                        // 🔥 顯示公司資訊
                         if let company = userManager.currentCompany {
                             Text(company.name)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         } else if userManager.isGuest {
-                            Text("訪客模式")
+                            Text("訣客模式")
                                 .font(.caption)
                                 .foregroundColor(.orange)
                         }
@@ -83,7 +138,6 @@ struct UserInfoSection: View {
 
                     Spacer()
 
-                    // 🔥 角色切換按鈕 (只在訪客模式顯示)
                     if userManager.isGuest {
                         Button(action: {
                             userManager.switchRole()
@@ -106,7 +160,6 @@ struct UserInfoSection: View {
         .padding(.horizontal)
     }
 
-    // MARK: - Helper Methods
     private func getUserIcon() -> String {
         if userManager.isGuest {
             return "person.crop.circle.dashed"
@@ -155,13 +208,52 @@ struct UserInfoSection: View {
     }
 }
 
-// Boss 專用設定分組 (保持現有)
+// MARK: - 整合邀請碼的 Boss 設定分組
 struct BossSettingsSection: View {
+    @Binding var inviteCode: String
+    @Binding var isLoading: Bool
+    @Binding var showingSheet: Bool
+    let loadInviteCode: () -> Void
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionHeader(title: "Management")
 
             VStack(spacing: 0) {
+                // 邀請碼行
+                Button(action: loadInviteCode) {
+                    HStack {
+                        Image(systemName: "key.fill")
+                            .font(.title3)
+                            .foregroundColor(.green)
+                            .frame(width: 30)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("組織邀請碼")
+                                .font(.body)
+                                .foregroundColor(.primary)
+                        }
+
+                        Spacer()
+
+                        if isLoading {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(isLoading)
+
+                SettingDivider()
+
+                // 其他管理功能
                 SettingRow(icon: "person.2.fill", title: "Employee Management", iconColor: .blue)
                 SettingDivider()
                 SettingRow(icon: "calendar.badge.clock", title: "Schedule Management", iconColor: .green)
@@ -179,7 +271,7 @@ struct BossSettingsSection: View {
     }
 }
 
-// Employee 專用設定分組 (保持現有)
+// MARK: - Employee 專用設定分組
 struct EmployeeSettingsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -201,7 +293,7 @@ struct EmployeeSettingsSection: View {
     }
 }
 
-// 🔥 更新的登出分組
+// MARK: - 登出分組
 struct LogoutSection: View {
     @EnvironmentObject var userManager: UserManager
     @State private var showingLogoutAlert = false
@@ -217,7 +309,7 @@ struct LogoutSection: View {
                         .foregroundColor(.red)
                         .frame(width: 30)
 
-                    Text(getLogoutButtonText())
+                    Text(userManager.isGuest ? "Exit Guest Mode" : "Logout")
                         .font(.body)
                         .foregroundColor(.red)
 
@@ -230,59 +322,22 @@ struct LogoutSection: View {
             }
         }
         .padding(.horizontal)
-        .alert(getLogoutAlertTitle(), isPresented: $showingLogoutAlert) {
+        .alert(userManager.isGuest ? "Exit Guest Mode" : "Logout", isPresented: $showingLogoutAlert) {
             Button("Cancel", role: .cancel) { }
-            Button(getLogoutConfirmText(), role: .destructive) {
-                handleLogout()
+            Button(userManager.isGuest ? "Exit" : "Logout", role: .destructive) {
+                do {
+                    try userManager.signOut()
+                } catch {
+                    print("Logout error: \(error)")
+                }
             }
         } message: {
-            Text(getLogoutAlertMessage())
-        }
-    }
-
-    // MARK: - Helper Methods
-    private func getLogoutButtonText() -> String {
-        if userManager.isGuest {
-            return "Exit Guest Mode"
-        } else {
-            return "Logout"
-        }
-    }
-
-    private func getLogoutAlertTitle() -> String {
-        if userManager.isGuest {
-            return "Exit Guest Mode"
-        } else {
-            return "Logout"
-        }
-    }
-
-    private func getLogoutConfirmText() -> String {
-        if userManager.isGuest {
-            return "Exit"
-        } else {
-            return "Logout"
-        }
-    }
-
-    private func getLogoutAlertMessage() -> String {
-        if userManager.isGuest {
-            return "Are you sure you want to exit guest mode?"
-        } else {
-            return "Are you sure you want to logout?"
-        }
-    }
-
-    private func handleLogout() {
-        do {
-            try userManager.signOut()  // 🔥 使用新的 signOut 方法
-        } catch {
-            print("Logout error: \(error)")
+            Text(userManager.isGuest ? "Are you sure you want to exit guest mode?" : "Are you sure you want to logout?")
         }
     }
 }
 
-// Preferences 分組組件 (保持現有)
+// MARK: - Preferences 分組組件
 struct PreferencesSection: View {
     @ObservedObject var themeManager: ThemeManager
 
@@ -308,7 +363,7 @@ struct PreferencesSection: View {
     }
 }
 
-// Support 分組組件 (保持現有)
+// MARK: - Support 分組組件
 struct SupportSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -330,7 +385,7 @@ struct SupportSection: View {
     }
 }
 
-// Section 標題組件 (保持現有)
+// MARK: - Section 標題組件
 struct SectionHeader: View {
     let title: String
 
@@ -347,7 +402,7 @@ struct SectionHeader: View {
     }
 }
 
-// Dark Mode 專用行組件 (保持現有)
+// MARK: - Dark Mode 專用行組件
 struct DarkModeRow: View {
     @ObservedObject var themeManager: ThemeManager
 
@@ -379,7 +434,7 @@ struct DarkModeRow: View {
     }
 }
 
-// 設定分隔線組件 (保持現有)
+// MARK: - 設定分隔線組件
 struct SettingDivider: View {
     var body: some View {
         Divider()
@@ -387,7 +442,7 @@ struct SettingDivider: View {
     }
 }
 
-// 版本信息組件 (保持現有)
+// MARK: - 版本信息組件
 struct VersionInfo: View {
     var body: some View {
         VStack(spacing: 4) {
@@ -400,6 +455,80 @@ struct VersionInfo: View {
                 .foregroundColor(.secondary)
         }
         .padding(.bottom, 20)
+    }
+}
+
+// MARK: - 邀請碼 Sheet
+struct InviteCodeSheet: View {
+    @Binding var inviteCode: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingCopiedAlert = false
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                Spacer()
+
+                Image(systemName: "key.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(.green)
+
+                VStack(spacing: 12) {
+                    Text("組織邀請碼")
+                        .font(.system(size: 24, weight: .bold))
+
+                    Text("分享此邀請碼給員工，讓他們加入您的組織")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                VStack(spacing: 16) {
+                    Text(inviteCode.isEmpty ? "載入中..." : inviteCode)
+                        .font(.system(size: 32, weight: .bold, design: .monospaced))
+                        .foregroundColor(inviteCode.isEmpty ? .gray : .green)
+                        .padding()
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(12)
+                        .onTapGesture {
+                            copyInviteCode()
+                        }
+                }
+
+                Button("複製邀請碼") {
+                    copyInviteCode()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(inviteCode.isEmpty)
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("邀請碼")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .alert("已複製", isPresented: $showingCopiedAlert) {
+            Button("確定") { }
+        } message: {
+            Text("邀請碼已複製到剪貼板")
+        }
+    }
+
+    private func copyInviteCode() {
+        guard !inviteCode.isEmpty else { return }
+
+        UIPasteboard.general.string = inviteCode
+        showingCopiedAlert = true
+
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
     }
 }
 
