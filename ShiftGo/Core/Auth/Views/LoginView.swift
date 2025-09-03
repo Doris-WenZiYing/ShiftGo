@@ -12,7 +12,6 @@ struct LoginView: View {
     @StateObject private var userManager = UserManager.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
-
     @State private var isSignUp = false
     @State private var email = ""
     @State private var password = ""
@@ -72,7 +71,6 @@ struct LoginView: View {
     // MARK: - Header
     private func headerView() -> some View {
         VStack(spacing: 16) {
-            // 🔥 保持原有設計，但更新 icon
             Image(systemName: "calendar.badge.checkmark")
                 .font(.system(size: 60))
                 .foregroundColor(.blue)
@@ -88,7 +86,7 @@ struct LoginView: View {
         .padding(.top, 40)
     }
 
-    // MARK: - 登入表單 (簡化，專注於核心功能)
+    // MARK: - 登入表單
     private func signInForm() -> some View {
         VStack(spacing: 16) {
             inputField("電子郵件", text: $email, keyboardType: .emailAddress)
@@ -96,7 +94,7 @@ struct LoginView: View {
         }
     }
 
-    // MARK: - 註冊表單 (保持原有設計)
+    // MARK: - 註冊表單
     private func signUpForm() -> some View {
         VStack(spacing: 20) {
             // 基本資訊
@@ -119,7 +117,7 @@ struct LoginView: View {
         }
     }
 
-    // MARK: - 角色選擇 (保持原有設計)
+    // MARK: - 角色選擇
     private func roleSelectionCard() -> some View {
         VStack(spacing: 16) {
             Text("選擇您的身分")
@@ -159,7 +157,7 @@ struct LoginView: View {
         .buttonStyle(PlainButtonStyle())
     }
 
-    // MARK: - 老闆組織設定 (保持原有設計)
+    // MARK: - 老闆組織設定
     private func bossOrganizationCard() -> some View {
         VStack(spacing: 16) {
             HStack {
@@ -178,7 +176,7 @@ struct LoginView: View {
         .cornerRadius(16)
     }
 
-    // MARK: - 員工邀請碼 (保持原有設計)
+    // MARK: - 員工邀請碼
     private func employeeInviteCard() -> some View {
         VStack(spacing: 16) {
             HStack {
@@ -201,7 +199,7 @@ struct LoginView: View {
         .cornerRadius(16)
     }
 
-    // MARK: - 輸入欄位 (保持原有設計)
+    // MARK: - 輸入欄位（包含密碼驗證）
     private func inputField(_ title: String, text: Binding<String>, keyboardType: UIKeyboardType = .default, isSecure: Bool = false, placeholder: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
@@ -217,10 +215,51 @@ struct LoginView: View {
             }
             .keyboardType(keyboardType)
             .textFieldStyle(CustomTextFieldStyle(colorScheme: colorScheme))
+
+            // 🔥 新增：密碼強度指示器
+            if isSecure && title.contains("密碼") && !title.contains("確認") && isSignUp {
+                PasswordStrengthView(password: text.wrappedValue)
+                    .padding(.top, 8)
+            }
+
+            // 🔥 新增：確認密碼驗證指示器
+            if isSecure && title.contains("確認") && isSignUp {
+                passwordMatchIndicator(original: password, confirmation: text.wrappedValue)
+            }
+
+            // 🔥 新增：Email格式提示
+            if keyboardType == .emailAddress && !text.wrappedValue.isEmpty && !text.wrappedValue.contains("@") {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.orange)
+
+                    Text("請輸入有效的電子郵件格式")
+                        .font(.system(size: 12))
+                        .foregroundColor(.orange)
+                }
+                .padding(.top, 4)
+            }
         }
     }
 
-    // MARK: - 按鈕 (保持原有設計，但使用新的身份驗證)
+    // 🔥 新增：密碼匹配指示器
+    private func passwordMatchIndicator(original: String, confirmation: String) -> some View {
+        HStack(spacing: 8) {
+            if !confirmation.isEmpty {
+                Image(systemName: original == confirmation ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(original == confirmation ? .green : .red)
+
+                Text(original == confirmation ? "密碼相符" : "密碼不相符")
+                    .font(.system(size: 12))
+                    .foregroundColor(original == confirmation ? .green : .red)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    // MARK: - 按鈕
     private func authButtons() -> some View {
         VStack(spacing: 16) {
             Button(action: handleAuth) {
@@ -237,10 +276,10 @@ struct LoginView: View {
                     Text(isSignUp ? "註冊" : "登入")
                         .font(.system(size: 18, weight: .semibold))
                 }
-                .foregroundColor(AppColors.Text.header(colorScheme))
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(isFormValid ? Color.blue : Color.gray.opacity(0.5))
+                .background(isFormValid ? Color.blue : Color.gray)
                 .cornerRadius(12)
             }
             .disabled(!isFormValid || isLoading)
@@ -301,7 +340,7 @@ struct LoginView: View {
         .disabled(isLoading)
     }
 
-    // MARK: - Loading Overlay (保持原有設計)
+    // MARK: - Loading Overlay
     private func loadingOverlay() -> some View {
         ZStack {
             Color.black.opacity(0.5)
@@ -314,25 +353,29 @@ struct LoginView: View {
 
                 Text(isSignUp ? "註冊中..." : "登入中...")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(AppColors.Text.header(colorScheme))
+                    .foregroundColor(.white)
             }
             .padding(24)
-            .background(AppColors.Text.header(colorScheme).opacity(0.8))
+            .background(Color.black.opacity(0.8))
             .cornerRadius(16)
         }
     }
 
-    // MARK: - Logic (🔥 使用新的 UserManager 方法)
+    // MARK: - Logic
     private var isFormValid: Bool {
         if isSignUp {
             return !email.isEmpty &&
-                   !password.isEmpty &&
-                   !confirmPassword.isEmpty &&
-                   !displayName.isEmpty &&
-                   password == confirmPassword &&
-                   (selectedRole == .boss ? !organizationName.isEmpty : !inviteCode.isEmpty)
+            !password.isEmpty &&
+            !confirmPassword.isEmpty &&
+            !displayName.isEmpty &&
+            email.contains("@") &&
+            PasswordValidator.isValidPassword(password) &&
+            password == confirmPassword &&
+            (selectedRole == .boss ? !organizationName.isEmpty : !inviteCode.isEmpty)
         } else {
-            return !email.isEmpty && !password.isEmpty
+            return !email.isEmpty &&
+            !password.isEmpty &&
+            email.contains("@")
         }
     }
 
@@ -346,7 +389,6 @@ struct LoginView: View {
 
         if isSignUp {
             if selectedRole == .boss {
-                // 🔥 使用新的 UserManager 方法
                 authPublisher = userManager.signUpAsBoss(
                     email: email,
                     password: password,
@@ -354,7 +396,6 @@ struct LoginView: View {
                     orgName: organizationName
                 )
             } else {
-                // 🔥 使用新的 UserManager 方法
                 authPublisher = userManager.signUpAsEmployee(
                     email: email,
                     password: password,
@@ -363,7 +404,6 @@ struct LoginView: View {
                 )
             }
         } else {
-            // 🔥 使用新的 UserManager 方法
             authPublisher = userManager.signIn(email: email, password: password)
         }
 
@@ -381,7 +421,7 @@ struct LoginView: View {
                     }
                 },
                 receiveValue: {
-                    // 🔥 不需要手動 dismiss，ContentView 會處理導航
+                    // ContentView 會處理導航
                 }
             )
             .store(in: &cancellables)
@@ -404,14 +444,14 @@ struct LoginView: View {
                     }
                 },
                 receiveValue: {
-                    // 🔥 不需要手動 dismiss，ContentView 會處理導航
+                    // ContentView 會處理導航
                 }
             )
             .store(in: &cancellables)
     }
 }
 
-// MARK: - Custom TextField Style (保持原有設計)
+// MARK: - Custom TextField Style
 struct CustomTextFieldStyle: TextFieldStyle {
     let colorScheme: ColorScheme
     func _body(configuration: TextField<Self._Label>) -> some View {
