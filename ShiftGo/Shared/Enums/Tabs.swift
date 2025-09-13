@@ -10,14 +10,14 @@ import Foundation
 enum EmployeeTab: String, CaseIterable {
     case calendar = "calendar"
     case reports = "reports"
-    case templates = "templates"
+    case templates = "timetracker" // 🔥 更新 rawValue
     case more = "more"
 
     var icon: String {
         switch self {
         case .calendar: return "calendar"
         case .reports: return "chart.bar"
-        case .templates: return "doc.text"
+        case .templates: return "clock.fill" // 🔥 更新圖標
         case .more: return "line.3.horizontal"
         }
     }
@@ -26,7 +26,7 @@ enum EmployeeTab: String, CaseIterable {
         switch self {
         case .calendar: return "Calendar"
         case .reports: return "Reports"
-        case .templates: return "Templates"
+        case .templates: return "Time Tracker" // 🔥 更新標籤
         case .more: return "More"
         }
     }

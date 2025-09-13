@@ -172,7 +172,7 @@ struct EmployeeAppView: View {
             case .reports:
                 EmployeeReportsView()
             case .templates:
-                EmployeeTemplateView()
+                TimeTrackerView()
             case .more:
                 MoreView()
             }

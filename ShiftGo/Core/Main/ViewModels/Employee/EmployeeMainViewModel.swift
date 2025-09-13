@@ -23,10 +23,7 @@ class EmployeeMainViewModel: ObservableObject {
     @Published var vacationNote: String = ""
 
     private let firebaseService = FirebaseService.shared
-
-    // Mock employee data (在實際應用中應該來自 Firebase Auth)
-    private let employeeName = "王小明"
-    private let employeeId = "E001"
+    private let userManager = UserManager.shared
 
     // MARK: - Public Methods
 
@@ -54,15 +51,29 @@ class EmployeeMainViewModel: ObservableObject {
             return
         }
 
+        // 🔥 新增：提交前最終驗證
+        if let validator = validator {
+            let result = validator.validate(selectedDates: selectedVacationDates, targetYear: year, targetMonth: month)
+            if !result.isValid, let errorMessage = result.errorMessage {
+                showToast(message: errorMessage, type: .error)
+                return
+            }
+        }
+
         print("🎯 [Employee] Submitting vacation request for \(year)/\(month) with \(selectedVacationDates.count) dates")
 
         isLoading = true
 
+        guard let currentUser = userManager.currentUser else {
+            showToast(message: "使用者未登入，請重新登入", type: .error)
+            return
+        }
+
         Task {
             do {
                 try await firebaseService.submitVacationRequest(
-                    employeeName: employeeName,
-                    employeeId: employeeId,
+                    employeeName: currentUser.name,
+                    employeeId: currentUser.employeeId ?? "no employee id",
                     year: year,
                     month: month,
                     vacationDates: selectedVacationDates,
@@ -92,8 +103,8 @@ class EmployeeMainViewModel: ObservableObject {
     /// 檢查是否可以申請排休
     func canSubmitVacation(for year: Int, month: Int) -> Bool {
         let canSubmit = isVacationPublished &&
-               !hasExistingRequest(for: year, month: month) &&
-               !selectedVacationDates.isEmpty
+        !hasExistingRequest(for: year, month: month) &&
+        !selectedVacationDates.isEmpty
 
         print("🔍 [Employee] Can submit vacation: \(canSubmit) (published: \(isVacationPublished), hasRequest: \(hasExistingRequest(for: year, month: month)), selectedDates: \(selectedVacationDates.count))")
 
@@ -120,6 +131,17 @@ class EmployeeMainViewModel: ObservableObject {
 
         return hasRequest
     }
+
+    func getDetailedVacationStats(for year: Int, month: Int) -> VacationStats? {
+            guard let settings = vacationSettings else { return nil }
+
+            return VacationStatsHelper.getStats(
+                selectedDates: selectedVacationDates,
+                settings: settings,
+                targetYear: year,
+                targetMonth: month
+            )
+        }
 
     /// 獲取當前月份的申請狀態
     func getVacationStatus(for year: Int, month: Int) -> EmployeeVacationStatus {
@@ -168,19 +190,15 @@ class EmployeeMainViewModel: ObservableObject {
 
     /// 檢查是否可以選擇該日期
     func canSelectDate(_ date: YearMonthDay) -> Bool {
-        let stats = getVacationStats(for: date.year, month: date.month)
-
-        // 如果已經選擇，可以取消選擇
-        if selectedVacationDates.contains(date) {
-            return true
+        guard let validator = validator else {
+            let stats = getVacationStats(for: date.year, month: date.month)
+            if selectedVacationDates.contains(date) {
+                return true
+            }
+            return selectedVacationDates.count < stats.maxDays
         }
 
-        // 檢查月限制
-        if selectedVacationDates.count >= stats.maxDays {
-            return false
-        }
-
-        return true
+        return validator.canSelectDate(date, currentSelection: selectedVacationDates)
     }
 
     /// 切換日期選擇
@@ -192,9 +210,78 @@ class EmployeeMainViewModel: ObservableObject {
             selectedVacationDates.insert(date)
             print("✅ [Employee] Added date: \(date.year)-\(date.month)-\(date.day)")
         } else {
-            showToast(message: "超過月排休上限", type: .error)
+            // 🔥 新增：顯示具體的驗證錯誤
+            if let validator = validator {
+                let newSelection = selectedVacationDates.union([date])
+                let result = validator.validate(selectedDates: newSelection, targetYear: date.year, targetMonth: date.month)
+
+                if let errorMessage = result.errorMessage {
+                    showToast(message: errorMessage, type: .error)
+                } else {
+                    showToast(message: "無法選擇此日期", type: .error)
+                }
+            } else {
+                showToast(message: "超過排休上限", type: .error)
+            }
         }
     }
+
+    func selectWeekends(for year: Int, month: Int) {
+        guard let settings = vacationSettings else { return }
+
+        let calendar = Calendar.current
+        guard let date = calendar.date(from: DateComponents(year: year, month: month, day: 1)),
+              let range = calendar.range(of: .day, in: .month, for: date) else {
+            return
+        }
+
+        var weekendDates: Set<YearMonthDay> = []
+
+        for day in 1...range.count {
+            let currentDate = calendar.date(from: DateComponents(year: year, month: month, day: day))!
+            let weekday = calendar.component(.weekday, from: currentDate)
+
+            if weekday == 1 || weekday == 7 { // Sunday or Saturday
+                let yearMonthDay = YearMonthDay(year: year, month: month, day: day)
+                weekendDates.insert(yearMonthDay)
+            }
+        }
+
+        // 使用驗證器檢查是否可以選擇這些日期
+        if let validator = validator {
+            let result = validator.validate(selectedDates: weekendDates, targetYear: year, targetMonth: month)
+            if result.isValid {
+                selectedVacationDates = weekendDates
+                showToast(message: "已選擇所有週末 (\(weekendDates.count) 天)", type: .success)
+            } else if let errorMessage = result.errorMessage {
+                showToast(message: errorMessage, type: .error)
+            }
+        } else {
+            selectedVacationDates = weekendDates
+            showToast(message: "已選擇所有週末 (\(weekendDates.count) 天)", type: .success)
+        }
+    }
+
+    func getDateSuggestions(for year: Int, month: Int) -> [YearMonthDay] {
+            guard let validator = validator else { return [] }
+
+            let calendar = Calendar.current
+            guard let date = calendar.date(from: DateComponents(year: year, month: month, day: 1)),
+                  let range = calendar.range(of: .day, in: .month, for: date) else {
+                return []
+            }
+
+            var suggestions: [YearMonthDay] = []
+
+            for day in 1...range.count {
+                let yearMonthDay = YearMonthDay(year: year, month: month, day: day)
+                if validator.canSelectDate(yearMonthDay, currentSelection: selectedVacationDates) {
+                    suggestions.append(yearMonthDay)
+                }
+            }
+
+            return suggestions
+        }
 
     /// 清除所有選擇的日期
     func clearSelectedDates() {
@@ -203,6 +290,11 @@ class EmployeeMainViewModel: ObservableObject {
     }
 
     // MARK: - Private Methods
+
+    private var validator: VacationValidator? {
+        guard let settings = vacationSettings else { return nil }
+        return VacationValidator(settings: settings)
+    }
 
     /// 載入排休相關資料
     private func loadVacationData(year: Int, month: Int) async {

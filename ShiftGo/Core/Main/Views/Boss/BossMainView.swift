@@ -205,14 +205,14 @@ struct BossMainView: View {
                     .fill((viewModel.isVacationPublished ? Color.green : Color.orange).opacity(0.1))
             )
 
-            // Employee count (if published)
-            if viewModel.isVacationPublished && viewModel.employeeVacationCount > 0 {
+            // 🔥 新增：限制類型顯示
+            if viewModel.isVacationPublished, let settings = viewModel.vacationSettings {
                 HStack(spacing: 6) {
-                    Image(systemName: "person.3.fill")
+                    Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 10))
                         .foregroundColor(.blue)
 
-                    Text("\(viewModel.employeeVacationCount)")
+                    Text(getLimitTypeDisplay(settings))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.blue)
                 }
@@ -221,6 +221,25 @@ struct BossMainView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.blue.opacity(0.1))
+                )
+            }
+
+            // Employee count (if published)
+            if viewModel.isVacationPublished && viewModel.employeeVacationCount > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.3.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.purple)
+
+                    Text("\(viewModel.employeeVacationCount)")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.purple)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.purple.opacity(0.1))
                 )
             }
         }
@@ -232,14 +251,43 @@ struct BossMainView: View {
             month: controller.yearMonth.month
         )
 
-        return HStack(spacing: 16) {
-            statItem(title: "申請員工", value: "\(stats.totalEmployees)人", color: .blue)
-            statItem(title: "總休假", value: "\(stats.totalDays)天", color: .orange)
-            if stats.pendingRequests > 0 {
-                statItem(title: "待審核", value: "\(stats.pendingRequests)", color: .red)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("本月統計")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.8))
+
+                Spacer()
+
+                // 🔥 新增：限制設定快速說明
+                if let settings = viewModel.vacationSettings {
+                    Text(settings.limitDescription)
+                        .font(.system(size: 12))
+                        .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
+                }
+            }
+
+            HStack(spacing: 16) {
+                statItem(title: "申請員工", value: "\(stats.totalEmployees)人", color: .blue)
+                statItem(title: "總休假", value: "\(stats.totalDays)天", color: .orange)
+                if stats.pendingRequests > 0 {
+                    statItem(title: "待審核", value: "\(stats.pendingRequests)", color: .red)
+                }
             }
         }
         .padding(.top, 8)
+    }
+
+    private func getLimitTypeDisplay(_ settings: VacationSettings) -> String {
+        if settings.hasMonthlyLimit && settings.hasWeeklyLimit {
+            return "彈性限制"
+        } else if settings.hasMonthlyLimit {
+            return "月限制"
+        } else if settings.hasWeeklyLimit {
+            return "週限制"
+        } else {
+            return "無限制"
+        }
     }
 
     private func statItem(title: String, value: String, color: Color) -> some View {
@@ -252,6 +300,7 @@ struct BossMainView: View {
                 .font(.system(size: 10))
                 .foregroundColor(AppColors.Text.header(colorScheme).opacity(0.6))
         }
+        .frame(minWidth: 60)
     }
 
     // MARK: - Calendar Section
@@ -317,7 +366,7 @@ struct BossMainView: View {
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
                     .background(
                         viewModel.selectedDate == date ? Color.gray.opacity(0.15) :
-                        (focusDate == date ? Color.gray.opacity(0.15) : Color.clear)
+                            (focusDate == date ? Color.gray.opacity(0.15) : Color.clear)
                     )
                     .cornerRadius(2)
                     .contentShape(Rectangle())

@@ -11,7 +11,7 @@ import Combine
 // MARK: - BossMainViewModel
 class BossMainViewModel: ObservableObject {
     // MARK: - Published Properties
-    @Published var vacationSettings = VacationSettings()
+    @Published var vacationSettings: VacationSettings?
     @Published var employeeVacations: [EmployeeVacation] = []
     @Published var isLoading = false
     @Published var showingToast = false
@@ -26,7 +26,7 @@ class BossMainViewModel: ObservableObject {
     private let firebaseService = FirebaseService.shared
 
     // Computed Properties
-    var isVacationPublished: Bool { vacationSettings.isPublished }
+    var isVacationPublished: Bool { vacationSettings?.isPublished ?? false }
     var employeeVacationCount: Int { employeeVacations.count }
 
     // 按日期分組的排休資料
@@ -118,14 +118,20 @@ class BossMainViewModel: ObservableObject {
 
         Task {
             do {
+                guard let vacationSettings = vacationSettings else {
+                    print("⚠️ [Boss] No vacation settings found when trying to unpublish")
+                    isLoading = false
+                    return
+                }
+
                 let currentYear = vacationSettings.targetYear
                 let monthNumber = getMonthNumber(from: vacationSettings.targetMonth)
 
                 try await firebaseService.unpublishVacationSettings(year: currentYear, month: monthNumber)
 
                 await MainActor.run {
-                    vacationSettings.isPublished = false
-                    vacationSettings.publishedAt = nil
+                    self.vacationSettings?.isPublished = false
+                    self.vacationSettings?.publishedAt = nil
                     isLoading = false
                     showToast(message: "排休發佈已取消", type: .info)
                 }
@@ -289,7 +295,7 @@ class BossMainViewModel: ObservableObject {
 
         await MainActor.run {
             isLoading = false
-            print("✅ [Boss] Data loaded - Published: \(vacationSettings.isPublished)")
+            print("✅ [Boss] Data loaded - Published: \(vacationSettings?.isPublished ?? false)")
         }
     }
 

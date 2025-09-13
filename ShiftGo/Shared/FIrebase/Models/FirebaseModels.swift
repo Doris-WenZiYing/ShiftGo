@@ -394,6 +394,7 @@ extension FirebaseVacationRequest {
 }
 
 extension FirebaseVacationSettings {
+    // 🔥 更新：轉換成本地的 VacationSettings 模型
     func toVacationSettings() -> VacationSettings {
         let months = [
             1: "1月", 2: "2月", 3: "3月", 4: "4月",
@@ -401,13 +402,24 @@ extension FirebaseVacationSettings {
             9: "9月", 10: "10月", 11: "11月", 12: "12月"
         ]
 
-        let limitTypeEnum: VacationLimitType = limitType == "weekly" ? .weekly : .monthly
+        // 🔥 根據限制值決定限制類型
+        let limitTypeEnum: VacationLimitType
+        if maxDaysPerMonth > 0 && maxDaysPerWeek > 0 {
+            limitTypeEnum = .flexible
+        } else if maxDaysPerMonth > 0 {
+            limitTypeEnum = .monthly
+        } else if maxDaysPerWeek > 0 {
+            limitTypeEnum = .weekly
+        } else {
+            // 預設為月限制
+            limitTypeEnum = .monthly
+        }
 
         return VacationSettings(
             targetMonth: months[targetMonth] ?? "",
             targetYear: targetYear,
-            maxDaysPerMonth: maxDaysPerMonth,
-            maxDaysPerWeek: maxDaysPerWeek,
+            maxDaysPerMonth: maxDaysPerMonth, // 🔥 保留原始值，0 表示無限制
+            maxDaysPerWeek: maxDaysPerWeek,   // 🔥 保留原始值，0 表示無限制
             limitType: limitTypeEnum,
             deadline: deadline.dateValue(),
             isPublished: isPublished,
@@ -416,21 +428,96 @@ extension FirebaseVacationSettings {
     }
 }
 
+extension FirebaseVacationSettings {
+    /// 檢查是否有月限制
+    var hasMonthlyLimit: Bool {
+        return maxDaysPerMonth > 0
+    }
+
+    /// 檢查是否有週限制
+    var hasWeeklyLimit: Bool {
+        return maxDaysPerWeek > 0
+    }
+
+    /// 獲取限制描述
+    var limitDescription: String {
+        var parts: [String] = []
+
+        if hasMonthlyLimit {
+            parts.append("月上限\(maxDaysPerMonth)天")
+        }
+
+        if hasWeeklyLimit {
+            parts.append("週上限\(maxDaysPerWeek)天")
+        }
+
+        if parts.isEmpty {
+            return "無限制"
+        }
+
+        return parts.joined(separator: "・")
+    }
+
+    /// 驗證設定的有效性
+    func validate() -> Bool {
+        // 至少要有一種限制
+        guard hasMonthlyLimit || hasWeeklyLimit else {
+            return false
+        }
+
+        // 月限制應該合理（1-31天）
+        if hasMonthlyLimit && (maxDaysPerMonth < 1 || maxDaysPerMonth > 31) {
+            return false
+        }
+
+        // 週限制應該合理（1-7天）
+        if hasWeeklyLimit && (maxDaysPerWeek < 1 || maxDaysPerWeek > 7) {
+            return false
+        }
+
+        return true
+    }
+}
+
 extension VacationSettings {
+    // 🔥 更新：支援彈性限制的轉換
     func toFirebaseVacationSettings(companyId: String) -> FirebaseVacationSettings {
         let monthNumber = getMonthNumber(from: targetMonth)
-        let limitTypeString = limitType == .weekly ? "weekly" : "monthly"
+
+        // 🔥 根據實際啟用的限制設定 limitType
+        let limitTypeString: String
+        if hasMonthlyLimit && hasWeeklyLimit {
+            limitTypeString = "flexible"
+        } else if hasMonthlyLimit {
+            limitTypeString = "monthly"
+        } else if hasWeeklyLimit {
+            limitTypeString = "weekly"
+        } else {
+            limitTypeString = "monthly" // 預設
+        }
+
+        let now = Timestamp()
+
+        print("🔄 Converting VacationSettings to Firebase:")
+        print("   - Target: \(targetYear)/\(monthNumber) (\(targetMonth))")
+        print("   - Monthly limit: \(maxDaysPerMonth) (enabled: \(hasMonthlyLimit))")
+        print("   - Weekly limit: \(maxDaysPerWeek) (enabled: \(hasWeeklyLimit))")
+        print("   - Limit type: \(limitTypeString)")
+        print("   - isPublished: \(isPublished)")
+        print("   - publishedAt: \(publishedAt?.description ?? "nil")")
 
         return FirebaseVacationSettings(
             companyId: companyId,
             targetYear: targetYear,
             targetMonth: monthNumber,
-            maxDaysPerMonth: maxDaysPerMonth,
-            maxDaysPerWeek: maxDaysPerWeek,
+            maxDaysPerMonth: maxDaysPerMonth, // 🔥 保留原始值，包括 0
+            maxDaysPerWeek: maxDaysPerWeek,   // 🔥 保留原始值，包括 0
             limitType: limitTypeString,
             deadline: Timestamp(date: deadline),
-            isPublished: isPublished,
-            publishedAt: publishedAt != nil ? Timestamp(date: publishedAt!) : nil
+            isPublished: isPublished, // 確保這裡正確傳遞
+            publishedAt: publishedAt != nil ? Timestamp(date: publishedAt!) : nil,
+            createdAt: now,
+            updatedAt: now
         )
     }
 
