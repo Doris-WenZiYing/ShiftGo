@@ -10,6 +10,13 @@ import SwiftUI
 // MARK: - 顏色管理系統
 struct AppColors {
 
+    // MARK: - 主題顏色（新增）
+    struct Theme {
+        static let primary = Color(hex: "ff6b3d")  // 你指定的主題色
+        static let secondary = Color(hex: "007a91")  // 稍深一點的變化色
+        static let light = Color(hex: "33aac4")  // 稍淺一點的變化色
+    }
+
     // MARK: - 背景顏色
     struct Background {
         static func primary(_ colorScheme: ColorScheme) -> Color {
@@ -51,7 +58,7 @@ struct AppColors {
     // MARK: - Tab Bar 顏色
     struct TabBar {
         static func selected(_ colorScheme: ColorScheme) -> Color {
-            colorScheme == .dark ? .white : .black
+            Theme.primary  // 使用主題色作為選中狀態
         }
 
         static func unselected(_ colorScheme: ColorScheme) -> Color {
@@ -65,6 +72,7 @@ struct AppColors {
 
     // MARK: - 強調色彩（固定不變的顏色）
     struct Accent {
+        static let primary = Theme.primary  // 新增：主要強調色使用主題色
         static let orange = Color.orange
         static let blue = Color.blue
         static let red = Color.red
@@ -79,8 +87,8 @@ struct AppColors {
     struct Calendar {
         static let sunday = Color.red
         static let saturday = Color.blue
-        static let selected = Color.orange
-        static let selectedBorder = Color.orange
+        static let selected = Theme.primary  // 使用主題色
+        static let selectedBorder = Theme.primary  // 使用主題色
 
         static func dayText(_ colorScheme: ColorScheme) -> Color {
             colorScheme == .dark ? .white : .black
@@ -89,12 +97,12 @@ struct AppColors {
 
     // MARK: - 設定頁面顏色
     struct Settings {
-        static let displayIcon = Color.blue
+        static let displayIcon = Theme.primary  // 使用主題色
         static let darkModeIcon = Color.indigo
-        static let appIcon = Color.orange
+        static let appIcon = Theme.primary  // 使用主題色
         static let widgetIcon = Color.green
         static let languageIcon = Color.red
-        static let helpIcon = Color.blue
+        static let helpIcon = Theme.primary  // 使用主題色
         static let rotationIcon = Color.purple
         static let privacyIcon = Color.gray
         static let eulaIcon = Color.teal
@@ -103,7 +111,7 @@ struct AppColors {
 
     // MARK: - 角色相關顏色
     struct Role {
-        static let employee = Color.blue
+        static let employee = Theme.primary  // 使用主題色
         static let boss = Color.purple
     }
 
@@ -112,12 +120,53 @@ struct AppColors {
         static let success = Color.green
         static let warning = Color.orange
         static let error = Color.red
-        static let info = Color.blue
+        static let info = Theme.primary  // 使用主題色
+    }
+}
+
+// MARK: - Color 擴展，支持十六進制顏色
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }
 
 // MARK: - Color 擴展，提供便利方法
 extension Color {
+
+    // 主題顏色（新增）
+    static var appTheme: Color {
+        AppColors.Theme.primary
+    }
+
+    static var appThemeSecondary: Color {
+        AppColors.Theme.secondary
+    }
+
+    static var appThemeLight: Color {
+        AppColors.Theme.light
+    }
 
     // 背景顏色
     static func appBackground(_ colorScheme: ColorScheme) -> Color {
@@ -162,6 +211,11 @@ extension View {
     @ViewBuilder
     func tabBarColors() -> some View {
         self.modifier(TabBarColorsModifier())
+    }
+
+    @ViewBuilder
+    func themeAccent() -> some View {
+        self.accentColor(AppColors.Theme.primary)
     }
 }
 

@@ -13,7 +13,7 @@ struct MoreView: View {
     @EnvironmentObject var userManager: UserManager
     @Environment(\.colorScheme) var colorScheme
 
-    // 邀請碼相關狀態
+    // Invite code related states
     @State private var organizationInviteCode = ""
     @State private var isLoadingInviteCode = false
     @State private var showingInviteCodeSheet = false
@@ -23,38 +23,39 @@ struct MoreView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 20) {
-                    UserInfoSection()
+                VStack(spacing: DesignTokens.Spacing.xl) {
+                    profileSection()
 
                     if userManager.isLoggedIn {
                         if userManager.currentRole == .boss {
-                            // 整合邀請碼的老闆設定區塊
-                            BossSettingsSection(
-                                inviteCode: $organizationInviteCode,
-                                isLoading: $isLoadingInviteCode,
-                                showingSheet: $showingInviteCodeSheet,
-                                loadInviteCode: loadInviteCode
-                            )
+                            managementSection()
                         } else {
-                            EmployeeSettingsSection()
+                            employeeSection()
                         }
                     }
 
-                    PreferencesSection(themeManager: themeManager)
-                    SupportSection()
-                    LogoutSection()
+                    preferencesSection()
+                    supportSection()
 
-                    Spacer()
-                    VersionInfo()
+                    if userManager.isLoggedIn || userManager.isGuest {
+                        logoutSection()
+                    }
+
+                    Spacer(minLength: DesignTokens.Spacing.xxxl)
                 }
+                .padding(.horizontal, DesignTokens.Spacing.lg)
+                .padding(.top, DesignTokens.Spacing.lg)
             }
+            .background(AppColors.Background.primary(colorScheme))
+            .navigationTitle("Settings")
+            .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingInviteCodeSheet) {
             InviteCodeSheet(inviteCode: $organizationInviteCode)
                 .presentationDetents([.medium])
         }
-        .alert("錯誤", isPresented: $showingErrorAlert) {
-            Button("確定") { }
+        .alert("Error", isPresented: $showingErrorAlert) {
+            Button("OK") { }
         } message: {
             Text(errorMessage)
         }
@@ -65,73 +66,45 @@ struct MoreView: View {
         }
     }
 
-    // MARK: - 邀請碼方法
-    private func preloadInviteCode() {
-        guard let currentCompany = userManager.currentCompany else { return }
-        organizationInviteCode = currentCompany.inviteCode
-    }
+    // MARK: - Profile Section
+    private func profileSection() -> some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
+            SectionHeader("Profile")
 
-    private func loadInviteCode() {
-        guard userManager.isLoggedIn else {
-            showError("請先登入後再試")
-            return
-        }
+            PrimaryCard {
+                HStack(spacing: DesignTokens.Spacing.lg) {
+                    // Avatar
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [getUserIconColor(), getUserIconColor().opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 60, height: 60)
+                        .overlay(
+                            Image(systemName: getUserIcon())
+                                .font(.system(size: 28))
+                                .foregroundColor(.white)
+                        )
 
-        guard userManager.currentRole == .boss else {
-            showError("只有管理者可以查看邀請碼")
-            return
-        }
-
-        guard let currentCompany = userManager.currentCompany else {
-            showError("找不到組織資訊")
-            return
-        }
-
-        organizationInviteCode = currentCompany.inviteCode
-
-        if !organizationInviteCode.isEmpty {
-            showingInviteCodeSheet = true
-        } else {
-            showError("邀請碼載入失敗")
-        }
-    }
-
-    private func showError(_ message: String) {
-        errorMessage = message
-        showingErrorAlert = true
-    }
-}
-
-// MARK: - 用戶資訊區域
-struct UserInfoSection: View {
-    @EnvironmentObject var userManager: UserManager
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(spacing: 0) {
-                HStack {
-                    Image(systemName: getUserIcon())
-                        .font(.title)
-                        .foregroundColor(getUserIconColor())
-                        .frame(width: 50)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(getUserStatusTitle())
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
+                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
                         Text(getUserDisplayName())
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.primary)
+                            .font(DesignTokens.Typography.headline)
+                            .foregroundColor(AppColors.Text.header(colorScheme))
+
+                        Text(getUserStatusTitle())
+                            .font(DesignTokens.Typography.captionMedium)
+                            .foregroundColor(getUserIconColor())
 
                         if let company = userManager.currentCompany {
                             Text(company.name)
-                                .font(.caption)
+                                .font(DesignTokens.Typography.caption)
                                 .foregroundColor(.secondary)
                         } else if userManager.isGuest {
-                            Text("訣客模式")
-                                .font(.caption)
+                            Text("Guest mode - Limited features")
+                                .font(DesignTokens.Typography.caption)
                                 .foregroundColor(.orange)
                         }
                     }
@@ -139,34 +112,261 @@ struct UserInfoSection: View {
                     Spacer()
 
                     if userManager.isGuest {
-                        Button(action: {
+                        PrimaryButton("Switch", style: .secondary) {
                             userManager.switchRole()
-                        }) {
-                            Text("Switch")
-                                .font(.caption)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
                         }
+                        .frame(width: 80)
                     }
                 }
-                .padding()
+                .padding(DesignTokens.Spacing.lg)
             }
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
         }
-        .padding(.horizontal)
     }
 
+    // MARK: - Management Section (Boss)
+    private func managementSection() -> some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
+            SectionHeader("Management")
+
+            PrimaryCard {
+                VStack(spacing: 0) {
+                    FeatureRow(
+                        icon: "key.fill",
+                        title: "Organization Invite Code",
+                        subtitle: "Manage employee access",
+                        iconColor: AppColors.Theme.primary
+                    ) {
+                        loadInviteCode()
+                    }
+
+                    Divider().padding(.leading, 56)
+
+                    FeatureRow(
+                        icon: "person.2.fill",
+                        title: "Employee Management",
+                        subtitle: "View and manage staff",
+                        iconColor: AppColors.Theme.secondary
+                    ) {
+                        // Employee management functionality
+                    }
+
+                    Divider().padding(.leading, 56)
+
+                    FeatureRow(
+                        icon: "calendar.badge.clock",
+                        title: "Schedule Management",
+                        subtitle: "Set and adjust schedules",
+                        iconColor: .green
+                    ) {
+                        // Schedule management functionality
+                    }
+
+                    Divider().padding(.leading, 56)
+
+                    FeatureRow(
+                        icon: "chart.line.uptrend.xyaxis",
+                        title: "Analytics & Reports",
+                        subtitle: "View operational data",
+                        iconColor: .purple
+                    ) {
+                        // Analytics functionality
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Employee Section
+    private func employeeSection() -> some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
+            SectionHeader("Personal Settings")
+
+            PrimaryCard {
+                VStack(spacing: 0) {
+                    FeatureRow(
+                        icon: "person.circle.fill",
+                        title: "Profile",
+                        subtitle: "Edit personal information",
+                        iconColor: AppColors.Theme.primary
+                    ) {
+                        // Profile functionality
+                    }
+
+                    Divider().padding(.leading, 56)
+
+                    FeatureRow(
+                        icon: "calendar.badge.plus",
+                        title: "Leave Requests",
+                        subtitle: "Request time off and shifts",
+                        iconColor: .green
+                    ) {
+                        // Leave request functionality
+                    }
+
+                    Divider().padding(.leading, 56)
+
+                    FeatureRow(
+                        icon: "clock.badge.checkmark.fill",
+                        title: "Time Tracking",
+                        subtitle: "View work hours",
+                        iconColor: .orange
+                    ) {
+                        // Time tracking functionality
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Preferences Section
+    private func preferencesSection() -> some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
+            SectionHeader("Preferences")
+
+            PrimaryCard {
+                VStack(spacing: 0) {
+                    FeatureRow(
+                        icon: "display",
+                        title: "Display Settings",
+                        subtitle: "Adjust interface display",
+                        iconColor: AppColors.Theme.primary
+                    ) {
+                        // Display settings functionality
+                    }
+
+                    Divider().padding(.leading, 56)
+
+                    // Dark Mode Toggle Row
+                    HStack(spacing: DesignTokens.Spacing.lg) {
+                        Circle()
+                            .fill(Color.indigo.opacity(0.1))
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Image(systemName: "moon.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.indigo)
+                            )
+
+                        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
+                            Text("Dark Mode")
+                                .font(DesignTokens.Typography.bodyMedium)
+                                .foregroundColor(AppColors.Text.header(colorScheme))
+
+                            Text(themeManager.currentTheme.displayName)
+                                .font(DesignTokens.Typography.small)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        NavigationLink(destination: ThemeSelectionView(themeManager: themeManager)) {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(DesignTokens.Spacing.lg)
+
+                    Divider().padding(.leading, 56)
+
+                    FeatureRow(
+                        icon: "globe",
+                        title: "Language",
+                        subtitle: "Choose display language",
+                        iconColor: .red
+                    ) {
+                        // Language settings functionality
+                    }
+
+                    Divider().padding(.leading, 56)
+
+                    FeatureRow(
+                        icon: "bell.fill",
+                        title: "Notifications",
+                        subtitle: "Manage push notifications",
+                        iconColor: .orange
+                    ) {
+                        // Notification settings functionality
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Support Section
+    private func supportSection() -> some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
+            SectionHeader("Help & Support")
+
+            PrimaryCard {
+                VStack(spacing: 0) {
+                    FeatureRow(
+                        icon: "questionmark.circle.fill",
+                        title: "Help Center",
+                        subtitle: "FAQs and user guides",
+                        iconColor: AppColors.Theme.primary
+                    ) {
+                        // Help center functionality
+                    }
+
+                    Divider().padding(.leading, 56)
+
+                    FeatureRow(
+                        icon: "envelope.fill",
+                        title: "Contact Us",
+                        subtitle: "Feedback and customer service",
+                        iconColor: .green
+                    ) {
+                        // Contact us functionality
+                    }
+
+                    Divider().padding(.leading, 56)
+
+                    FeatureRow(
+                        icon: "doc.text.fill",
+                        title: "Terms of Service",
+                        subtitle: "Terms and privacy policy",
+                        iconColor: .gray
+                    ) {
+                        // Terms functionality
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Logout Section
+    private func logoutSection() -> some View {
+        VStack(spacing: DesignTokens.Spacing.lg) {
+            PrimaryButton(
+                userManager.isGuest ? "Exit Guest Mode" : "Sign Out",
+                icon: "power",
+                style: .destructive
+            ) {
+                showLogoutAlert()
+            }
+
+            // Version info
+            VStack(spacing: DesignTokens.Spacing.xs) {
+                Text("ShiftGo")
+                    .font(DesignTokens.Typography.smallMedium)
+                    .foregroundColor(.secondary)
+
+                Text("Version 1.0.0")
+                    .font(DesignTokens.Typography.small)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Helper Methods
     private func getUserIcon() -> String {
         if userManager.isGuest {
             return "person.crop.circle.dashed"
         } else {
             switch userManager.currentRole {
             case .boss:
-                return "person.badge.key.fill"
+                return "crown.fill"
             case .employee:
                 return "person.fill"
             }
@@ -181,20 +381,20 @@ struct UserInfoSection: View {
             case .boss:
                 return .purple
             case .employee:
-                return .blue
+                return AppColors.Theme.primary
             }
         }
     }
 
     private func getUserStatusTitle() -> String {
         if userManager.isGuest {
-            return "訪客模式"
+            return "Guest Mode"
         } else {
             switch userManager.currentRole {
             case .boss:
-                return "管理者"
+                return "Manager"
             case .employee:
-                return "員工"
+                return "Employee"
             }
         }
     }
@@ -203,321 +403,144 @@ struct UserInfoSection: View {
         if let user = userManager.currentUser {
             return user.name
         } else {
-            return "未登入"
+            return "Not signed in"
         }
     }
-}
 
-// MARK: - 整合邀請碼的 Boss 設定分組
-struct BossSettingsSection: View {
-    @Binding var inviteCode: String
-    @Binding var isLoading: Bool
-    @Binding var showingSheet: Bool
-    let loadInviteCode: () -> Void
+    private func showLogoutAlert() {
+        let alert = UIAlertController(
+            title: userManager.isGuest ? "Exit Guest Mode" : "Sign Out",
+            message: userManager.isGuest ? "Are you sure you want to exit guest mode?" : "Are you sure you want to sign out?",
+            preferredStyle: .alert
+        )
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(title: "Management")
-
-            VStack(spacing: 0) {
-                // 邀請碼行
-                Button(action: loadInviteCode) {
-                    HStack {
-                        Image(systemName: "key.fill")
-                            .font(.title3)
-                            .foregroundColor(.green)
-                            .frame(width: 30)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("組織邀請碼")
-                                .font(.body)
-                                .foregroundColor(.primary)
-                        }
-
-                        Spacer()
-
-                        if isLoading {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .disabled(isLoading)
-
-                SettingDivider()
-
-                // 其他管理功能
-                SettingRow(icon: "person.2.fill", title: "Employee Management", iconColor: .blue)
-                SettingDivider()
-                SettingRow(icon: "calendar.badge.clock", title: "Schedule Management", iconColor: .green)
-                SettingDivider()
-                SettingRow(icon: "chart.line.uptrend.xyaxis", title: "Analytics & Reports", iconColor: .purple)
-                SettingDivider()
-                SettingRow(icon: "bell.badge.fill", title: "Notifications", iconColor: .red)
-                SettingDivider()
-                SettingRow(icon: "building.2.fill", title: "Company Settings", iconColor: .orange)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: userManager.isGuest ? "Exit" : "Sign Out", style: .destructive) { _ in
+            do {
+                try userManager.signOut()
+            } catch {
+                print("Logout error: \(error)")
             }
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
+        })
+
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            window.rootViewController?.present(alert, animated: true)
         }
-        .padding(.horizontal)
+    }
+
+    // MARK: - Invite Code Methods
+    private func preloadInviteCode() {
+        guard let currentCompany = userManager.currentCompany else { return }
+        organizationInviteCode = currentCompany.inviteCode
+    }
+
+    private func loadInviteCode() {
+        guard userManager.isLoggedIn else {
+            showError("Please sign in first")
+            return
+        }
+
+        guard userManager.currentRole == .boss else {
+            showError("Only managers can view the invite code")
+            return
+        }
+
+        guard let currentCompany = userManager.currentCompany else {
+            showError("Organization information not found")
+            return
+        }
+
+        organizationInviteCode = currentCompany.inviteCode
+
+        if !organizationInviteCode.isEmpty {
+            showingInviteCodeSheet = true
+        } else {
+            showError("Failed to load invite code")
+        }
+    }
+
+    private func showError(_ message: String) {
+        errorMessage = message
+        showingErrorAlert = true
     }
 }
 
-// MARK: - Employee 專用設定分組
-struct EmployeeSettingsSection: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(title: "My Settings")
-
-            VStack(spacing: 0) {
-                SettingRow(icon: "person.circle.fill", title: "Profile", iconColor: .blue)
-                SettingDivider()
-                SettingRow(icon: "calendar.badge.plus", title: "Shift Requests", iconColor: .green)
-                SettingDivider()
-                SettingRow(icon: "clock.badge.checkmark.fill", title: "Time Tracking", iconColor: .orange)
-                SettingDivider()
-                SettingRow(icon: "bell.fill", title: "Notifications", iconColor: .red)
-            }
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
-        }
-        .padding(.horizontal)
-    }
-}
-
-// MARK: - 登出分組
-struct LogoutSection: View {
-    @EnvironmentObject var userManager: UserManager
-    @State private var showingLogoutAlert = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Button(action: {
-                showingLogoutAlert = true
-            }) {
-                HStack {
-                    Image(systemName: "power")
-                        .font(.title3)
-                        .foregroundColor(.red)
-                        .frame(width: 30)
-
-                    Text(userManager.isGuest ? "Exit Guest Mode" : "Logout")
-                        .font(.body)
-                        .foregroundColor(.red)
-
-                    Spacer()
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-            }
-        }
-        .padding(.horizontal)
-        .alert(userManager.isGuest ? "Exit Guest Mode" : "Logout", isPresented: $showingLogoutAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button(userManager.isGuest ? "Exit" : "Logout", role: .destructive) {
-                do {
-                    try userManager.signOut()
-                } catch {
-                    print("Logout error: \(error)")
-                }
-            }
-        } message: {
-            Text(userManager.isGuest ? "Are you sure you want to exit guest mode?" : "Are you sure you want to logout?")
-        }
-    }
-}
-
-// MARK: - Preferences 分組組件
-struct PreferencesSection: View {
-    @ObservedObject var themeManager: ThemeManager
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(title: "Preferences")
-
-            VStack(spacing: 0) {
-                SettingRow(icon: "display", title: "Display Options", iconColor: .blue)
-                SettingDivider()
-                DarkModeRow(themeManager: themeManager)
-                SettingDivider()
-                SettingRow(icon: "app.badge", title: "App Icon", iconColor: .orange)
-                SettingDivider()
-                SettingRow(icon: "widget.medium", title: "Widget", iconColor: .green)
-                SettingDivider()
-                SettingRow(icon: "globe", title: "Language", iconColor: .red)
-            }
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
-        }
-        .padding(.horizontal)
-    }
-}
-
-// MARK: - Support 分組組件
-struct SupportSection: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(title: "Support")
-
-            VStack(spacing: 0) {
-                SettingRow(icon: "questionmark.circle.fill", title: "Help", iconColor: .blue)
-                SettingDivider()
-                SettingRow(icon: "arrow.triangle.2.circlepath", title: "Rotations", iconColor: .purple)
-                SettingDivider()
-                SettingRow(icon: "hand.raised.fill", title: "Privacy Policy", iconColor: .gray)
-                SettingDivider()
-                SettingRow(icon: "doc.text.fill", title: "EULA", iconColor: .teal)
-            }
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
-        }
-        .padding(.horizontal)
-    }
-}
-
-// MARK: - Section 標題組件
-struct SectionHeader: View {
-    let title: String
-
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(.primary)
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 12)
-    }
-}
-
-// MARK: - Dark Mode 專用行組件
-struct DarkModeRow: View {
-    @ObservedObject var themeManager: ThemeManager
-
-    var body: some View {
-        NavigationLink(destination: ThemeSelectionView(themeManager: themeManager)) {
-            HStack {
-                Image(systemName: "moon.fill")
-                    .font(.title3)
-                    .foregroundColor(.indigo)
-                    .frame(width: 30)
-
-                Text("Dark Mode")
-                    .font(.body)
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                Text(themeManager.currentTheme.displayName)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-        }
-    }
-}
-
-// MARK: - 設定分隔線組件
-struct SettingDivider: View {
-    var body: some View {
-        Divider()
-            .padding(.leading, 50)
-    }
-}
-
-// MARK: - 版本信息組件
-struct VersionInfo: View {
-    var body: some View {
-        VStack(spacing: 4) {
-            Text("ShiftGo")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Text("Version 1.0.0")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding(.bottom, 20)
-    }
-}
-
-// MARK: - 邀請碼 Sheet
+// MARK: - Invite Code Sheet (English Version)
 struct InviteCodeSheet: View {
     @Binding var inviteCode: String
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
     @State private var showingCopiedAlert = false
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
+            VStack(spacing: DesignTokens.Spacing.xxxl) {
                 Spacer()
 
-                Image(systemName: "key.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(.green)
+                // Icon
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [AppColors.Theme.primary, AppColors.Theme.secondary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 100, height: 100)
+                    .overlay(
+                        Image(systemName: "key.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.white)
+                    )
 
-                VStack(spacing: 12) {
-                    Text("組織邀請碼")
-                        .font(.system(size: 24, weight: .bold))
+                VStack(spacing: DesignTokens.Spacing.md) {
+                    Text("Organization Invite Code")
+                        .font(DesignTokens.Typography.largeTitle)
+                        .foregroundColor(AppColors.Text.header(colorScheme))
 
-                    Text("分享此邀請碼給員工，讓他們加入您的組織")
-                        .font(.system(size: 16))
+                    Text("Share this invite code with employees to join your organization")
+                        .font(DesignTokens.Typography.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal, DesignTokens.Spacing.xl)
                 }
 
-                VStack(spacing: 16) {
-                    Text(inviteCode.isEmpty ? "載入中..." : inviteCode)
-                        .font(.system(size: 32, weight: .bold, design: .monospaced))
-                        .foregroundColor(inviteCode.isEmpty ? .gray : .green)
-                        .padding()
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(12)
-                        .onTapGesture {
-                            copyInviteCode()
+                PrimaryCard(backgroundColor: AppColors.Theme.primary.opacity(0.1)) {
+                    VStack(spacing: DesignTokens.Spacing.lg) {
+                        Text(inviteCode.isEmpty ? "Loading..." : inviteCode)
+                            .font(.system(size: 32, weight: .bold, design: .monospaced))
+                            .foregroundColor(inviteCode.isEmpty ? .gray : AppColors.Theme.primary)
+                            .padding()
+
+                        if !inviteCode.isEmpty {
+                            PrimaryButton("Copy Invite Code", icon: "doc.on.doc.fill") {
+                                copyInviteCode()
+                            }
                         }
+                    }
+                    .padding(DesignTokens.Spacing.xl)
                 }
-
-                Button("複製邀請碼") {
-                    copyInviteCode()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(inviteCode.isEmpty)
 
                 Spacer()
             }
-            .padding()
-            .navigationTitle("邀請碼")
+            .padding(.horizontal, DesignTokens.Spacing.xl)
+            .background(AppColors.Background.primary(colorScheme))
+            .navigationTitle("Invite Code")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
+                    Button("Done") {
                         dismiss()
                     }
+                    .foregroundColor(AppColors.Theme.primary)
                 }
             }
         }
-        .alert("已複製", isPresented: $showingCopiedAlert) {
-            Button("確定") { }
+        .alert("Copied", isPresented: $showingCopiedAlert) {
+            Button("OK") { }
         } message: {
-            Text("邀請碼已複製到剪貼板")
+            Text("Invite code has been copied to clipboard")
         }
     }
 
