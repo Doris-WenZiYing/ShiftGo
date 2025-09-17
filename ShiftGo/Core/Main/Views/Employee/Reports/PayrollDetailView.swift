@@ -358,7 +358,3 @@ struct PayrollDetailView: View {
         )
     )
 }
-
-#Preview {
-//    PayrollDetailView(timeRange: <#EmployeeReportsView.TimeRange#>, payrollData: )
-}
