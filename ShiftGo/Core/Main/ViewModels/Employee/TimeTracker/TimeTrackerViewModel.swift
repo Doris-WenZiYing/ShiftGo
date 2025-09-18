@@ -8,57 +8,10 @@
 import Foundation
 import SwiftUI
 
-// MARK: - 出勤狀態枚舉
-enum AttendanceStatus {
-    case normal
-    case late
-    case overtime
-    case leave
-    case absent
-
-    var displayText: String {
-        switch self {
-        case .normal: return "正常"
-        case .late: return "遲到"
-        case .overtime: return "加班"
-        case .leave: return "請假"
-        case .absent: return "缺勤"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .normal: return .green
-        case .late: return .orange
-        case .overtime: return .blue
-        case .leave: return .gray
-        case .absent: return .red
-        }
-    }
-}
-
 // MARK: - 週統計資料
 struct WeeklyData {
     let day: String
     let hours: Int
-}
-
-// MARK: - 時間記錄
-struct TimeRecord: Identifiable {
-    let id = UUID()
-    let dateString: String
-    let clockIn: String
-    let clockOut: String?
-    let totalHours: Int
-    let status: AttendanceStatus
-
-    init(dateString: String, clockIn: String, clockOut: String?, totalHours: Int, status: AttendanceStatus) {
-        self.dateString = dateString
-        self.clockIn = clockIn
-        self.clockOut = clockOut
-        self.totalHours = totalHours
-        self.status = status
-    }
 }
 
 // MARK: - ViewModel

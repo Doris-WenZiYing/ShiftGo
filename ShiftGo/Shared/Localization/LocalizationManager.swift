@@ -64,17 +64,6 @@ class LocalizationManager: ObservableObject {
     }
 }
 
-// MARK: - Localization Extensions
-extension String {
-    var localized: String {
-        LocalizationManager.shared.localizedString(for: self)
-    }
-
-    func localized(comment: String = "") -> String {
-        LocalizationManager.shared.localizedString(for: self, comment: comment)
-    }
-}
-
 // MARK: - SwiftUI Localization Environment
 struct LocalizationEnvironment: ViewModifier {
     @ObservedObject private var localizationManager = LocalizationManager.shared

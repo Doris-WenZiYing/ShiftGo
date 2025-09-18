@@ -12,10 +12,8 @@ import FirebaseAuth
 
 @MainActor
 class CompanyManager: ObservableObject {
-
     // MARK: - Published Properties
     @Published var employees: [User] = []
-    @Published var companyStats: CompanyStats = CompanyStats()
     @Published var isLoading = false
     @Published var error: CompanyError?
 
@@ -52,8 +50,6 @@ class CompanyManager: ObservableObject {
         do {
             let loadedEmployees = try await firebaseService.getCompanyEmployees()
             employees = loadedEmployees
-            updateCompanyStats()
-
         } catch {
             self.error = CompanyError.from(error)
         }
@@ -69,7 +65,6 @@ class CompanyManager: ObservableObject {
         }
 
         let employeeId = employee.id
-
         isLoading = true
 
         do {
@@ -78,15 +73,12 @@ class CompanyManager: ObservableObject {
             if let name = newData.name {
                 updateData["name"] = name
             }
-
             if let hourlyRate = newData.hourlyRate {
                 updateData["hourly_rate"] = hourlyRate
             }
-
             if let employmentType = newData.employmentType {
                 updateData["employment_type"] = employmentType.rawValue
             }
-
             if let isActive = newData.isActive {
                 updateData["is_active"] = isActive
             }
@@ -95,13 +87,9 @@ class CompanyManager: ObservableObject {
 
             // 更新本地資料
             if let index = employees.firstIndex(where: { $0.id == employeeId }) {
-                var updatedEmployee = employee
-
-                // 這裡需要創建新的 User 物件，因為 User 的屬性是 let
-                // 實際上需要重新載入員工列表或者修改 User 結構
-                await loadEmployees() // 簡單的方法：重新載入
+                // 重新載入員工列表以確保資料同步
+                await loadEmployees()
             }
-
         } catch {
             self.error = CompanyError.from(error)
         }
@@ -115,7 +103,6 @@ class CompanyManager: ObservableObject {
             error = .permissionDenied
             return
         }
-
         await updateEmployee(employee, newData: EmployeeUpdateData(isActive: false))
     }
 
@@ -125,7 +112,6 @@ class CompanyManager: ObservableObject {
             error = .permissionDenied
             return
         }
-
         await updateEmployee(employee, newData: EmployeeUpdateData(isActive: true))
     }
 
@@ -152,7 +138,6 @@ class CompanyManager: ObservableObject {
 
         do {
             let newInviteCode = generateInviteCode()
-
             let db = Firestore.firestore()
             try await db.collection("companies").document(companyId).updateData([
                 "invite_code": newInviteCode,
@@ -175,7 +160,6 @@ class CompanyManager: ObservableObject {
             }
 
             return newInviteCode
-
         } catch {
             self.error = CompanyError.from(error)
             return nil
@@ -199,11 +183,9 @@ class CompanyManager: ObservableObject {
             if let name = name {
                 updateData["name"] = name
             }
-
             if let maxEmployees = maxEmployees {
                 updateData["max_employees"] = maxEmployees
             }
-
             if let timezone = timezone {
                 updateData["timezone"] = timezone
             }
@@ -213,7 +195,6 @@ class CompanyManager: ObservableObject {
 
             // 重新載入公司資料
             await reloadCompanyData()
-
         } catch {
             self.error = CompanyError.from(error)
         }
@@ -240,21 +221,6 @@ class CompanyManager: ObservableObject {
 
     // MARK: - Statistics
 
-    /// 更新公司統計資料
-    private func updateCompanyStats() {
-        let activeEmployees = employees.filter { $0.isActive }
-        let fullTimeCount = activeEmployees.filter { $0.employmentType == "full_time" }.count
-        let partTimeCount = activeEmployees.filter { $0.employmentType == "part_time" }.count
-
-        companyStats = CompanyStats(
-            totalEmployees: employees.count,
-            activeEmployees: activeEmployees.count,
-            fullTimeEmployees: fullTimeCount,
-            partTimeEmployees: partTimeCount,
-            averageHourlyRate: calculateAverageHourlyRate(activeEmployees)
-        )
-    }
-
     /// 計算平均時薪
     private func calculateAverageHourlyRate(_ employees: [User]) -> Double {
         let employeesWithRate = employees.filter { $0.hourlyRate > 0 }
@@ -274,6 +240,12 @@ class CompanyManager: ObservableObject {
         return (activeCount, inactiveCount, fullTimeCount, partTimeCount)
     }
 
+    /// 計算當前平均時薪
+    func getCurrentAverageHourlyRate() -> Double {
+        let activeEmployees = employees.filter { $0.isActive }
+        return calculateAverageHourlyRate(activeEmployees)
+    }
+
     // MARK: - Company Information
 
     /// 獲取公司資訊摘要
@@ -281,6 +253,7 @@ class CompanyManager: ObservableObject {
         guard let company = currentCompany else { return nil }
 
         let stats = getEmployeeStats()
+        let averageRate = getCurrentAverageHourlyRate()
 
         return CompanySummary(
             name: company.name,
@@ -289,7 +262,7 @@ class CompanyManager: ObservableObject {
             activeEmployees: stats.active,
             maxEmployees: company.maxEmployees,
             timezone: company.timezone,
-            averageHourlyRate: companyStats.averageHourlyRate,
+            averageHourlyRate: averageRate,
             createdAt: company.createdAt.dateValue()
         )
     }
@@ -333,6 +306,27 @@ class CompanyManager: ObservableObject {
         guard let type = type else { return employees }
         return employees.filter { $0.employmentType == type.rawValue }
     }
+
+    /// 獲取員工總數
+    var totalEmployees: Int {
+        return employees.count
+    }
+
+    /// 獲取活躍員工總數
+    var activeEmployees: Int {
+        return employees.filter { $0.isActive }.count
+    }
+
+    /// 獲取非活躍員工總數
+    var inactiveEmployees: Int {
+        return employees.count - activeEmployees
+    }
+
+    /// 檢查是否接近員工上限
+    var isNearEmployeeLimit: Bool {
+        guard let company = currentCompany, company.maxEmployees > 0 else { return false }
+        return Double(employees.count) / Double(company.maxEmployees) >= 0.8
+    }
 }
 
 // MARK: - Supporting Models
@@ -356,6 +350,14 @@ struct CompanySummary {
     var isNearCapacity: Bool {
         employeeUtilization >= 0.8
     }
+
+    var utilizationPercentage: Int {
+        Int(employeeUtilization * 100)
+    }
+
+    var remainingCapacity: Int {
+        max(0, maxEmployees - totalEmployees)
+    }
 }
 
 // MARK: - Error Handling
@@ -371,17 +373,17 @@ enum CompanyError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .permissionDenied:
-            return "沒有權限執行此操作"
+            return "permission_denied_error".localized
         case .invalidEmployeeData:
-            return "員工資料格式錯誤"
+            return "invalid_employee_data_error".localized
         case .employeeNotFound:
-            return "找不到指定員工"
+            return "employee_not_found_error".localized
         case .companyNotFound:
-            return "找不到公司資料"
+            return "company_not_found_error".localized
         case .networkError:
-            return "網路連接錯誤"
+            return "network_error".localized
         case .unknown(let message):
-            return "發生錯誤：\(message)"
+            return String(format: "unknown_error_format".localized, message)
         }
     }
 
