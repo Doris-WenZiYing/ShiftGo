@@ -1,0 +1,121 @@
+//
+//  Localizable.string
+//  ShiftGo
+//
+//  Created by Doris Wen on 2025/9/18.
+//
+
+// MARK: - General
+"app_name" = "ShiftGo";
+"loading" = "Loading...";
+"error" = "Error";
+"success" = "Success";
+"cancel" = "Cancel";
+"confirm" = "Confirm";
+"save" = "Save";
+"delete" = "Delete";
+"edit" = "Edit";
+"done" = "Done";
+"close" = "Close";
+"retry" = "Retry";
+"refresh" = "Refresh";
+
+// MARK: - User Roles
+"role_employee" = "Employee";
+"role_boss" = "Manager";
+"role_employee_description" = "Request time off and view schedules";
+"role_boss_description" = "Manage employees and schedules";
+
+// MARK: - Employment Types
+"employment_full_time" = "Full-time";
+"employment_part_time" = "Part-time";
+
+// MARK: - User Status
+"status_active" = "Active";
+"status_inactive" = "Inactive";
+"status_pending" = "Pending";
+"status_suspended" = "Suspended";
+
+// MARK: - Calendar
+"calendar_sunday" = "Sun";
+"calendar_monday" = "Mon";
+"calendar_tuesday" = "Tue";
+"calendar_wednesday" = "Wed";
+"calendar_thursday" = "Thu";
+"calendar_friday" = "Fri";
+"calendar_saturday" = "Sat";
+
+"month_january" = "January";
+"month_february" = "February";
+"month_march" = "March";
+"month_april" = "April";
+"month_may" = "May";
+"month_june" = "June";
+"month_july" = "July";
+"month_august" = "August";
+"month_september" = "September";
+"month_october" = "October";
+"month_november" = "November";
+"month_december" = "December";
+
+// MARK: - Vacation/Leave Management
+"vacation_settings" = "Leave Settings";
+"vacation_published" = "Published";
+"vacation_not_published" = "Not Published";
+"vacation_limit_monthly" = "Monthly Limit";
+"vacation_limit_weekly" = "Weekly Limit";
+"vacation_limit_flexible" = "Flexible Limit";
+"vacation_status_pending" = "Pending";
+"vacation_status_approved" = "Approved";
+"vacation_status_rejected" = "Rejected";
+
+// MARK: - Attendance Status
+"attendance_normal" = "Normal";
+"attendance_late" = "Late";
+"attendance_overtime" = "Overtime";
+"attendance_leave" = "Leave";
+"attendance_absent" = "Absent";
+
+// MARK: - UI Elements
+"toast_success" = "Success";
+"toast_error" = "Error";
+"toast_info" = "Info";
+"toast_warning" = "Warning";
+
+// MARK: - Tabs
+"tab_calendar" = "Calendar";
+"tab_reports" = "Reports";
+"tab_timetracker" = "Time Tracker";
+"tab_more" = "More";
+"tab_dashboard" = "Dashboard";
+"tab_employees" = "Employees";
+"tab_schedules" = "Schedules";
+"tab_analytics" = "Analytics";
+
+// MARK: - Theme Options
+"theme_automatic" = "Automatic";
+"theme_light" = "Light Mode";
+"theme_dark" = "Dark Mode";
+"theme_follow_system" = "Follow System";
+
+// MARK: - Time Tracking
+"time_tracking_not_started" = "Not Started";
+"time_tracking_working" = "Working";
+"time_tracking_on_break" = "On Break";
+"time_tracking_finished" = "Finished";
+
+// MARK: - Payroll
+"payroll_total_earnings" = "Total Earnings";
+"payroll_base_pay" = "Base Pay";
+"payroll_overtime_pay" = "Overtime Pay";
+"payroll_allowance" = "Allowance";
+"payroll_deductions" = "Deductions";
+"payroll_net_pay" = "Net Pay";
+
+// MARK: - Validation Messages
+"validation_required_field" = "This field is required";
+"validation_invalid_email" = "Please enter a valid email address";
+"validation_password_too_weak" = "Password must be at least 6 characters";
+"validation_passwords_dont_match" = "Passwords do not match";
+"validation_monthly_limit_exceeded" = "Monthly leave limit exceeded! Selected %d days, limit is %d days";
+"validation_weekly_limit_exceeded" = "Weekly leave limit exceeded for week %d! Selected %d days, limit is %d days";

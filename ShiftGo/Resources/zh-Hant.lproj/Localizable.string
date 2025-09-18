@@ -1,0 +1,121 @@
+//
+//  Localizable.string
+//  ShiftGo
+//
+//  Created by Doris Wen on 2025/9/18.
+//
+
+// MARK: - General
+"app_name" = "ShiftGo";
+"loading" = "加載中...";
+"error" = "錯誤";
+"success" = "成功";
+"cancel" = "取消";
+"confirm" = "確認";
+"save" = "保存";
+"delete" = "刪除";
+"edit" = "編輯";
+"done" = "完成";
+"close" = "關閉";
+"retry" = "重試";
+"refresh" = "刷新";
+
+// MARK: - User Roles
+"role_employee" = "員工";
+"role_boss" = "主管";
+"role_employee_description" = "申請休假和查看班表";
+"role_boss_description" = "管理員工和班表";
+
+// MARK: - Employment Types
+"employment_full_time" = "正職";
+"employment_part_time" = "兼職";
+
+// MARK: - User Status
+"status_active" = "活躍";
+"status_inactive" = "停用";
+"status_pending" = "待驗證";
+"status_suspended" = "暫停";
+
+// MARK: - Calendar
+"calendar_sunday" = "日";
+"calendar_monday" = "一";
+"calendar_tuesday" = "二";
+"calendar_wednesday" = "三";
+"calendar_thursday" = "四";
+"calendar_friday" = "五";
+"calendar_saturday" = "六";
+
+"month_january" = "1月";
+"month_february" = "2月";
+"month_march" = "3月";
+"month_april" = "4月";
+"month_may" = "5月";
+"month_june" = "6月";
+"month_july" = "7月";
+"month_august" = "8月";
+"month_september" = "9月";
+"month_october" = "10月";
+"month_november" = "11月";
+"month_december" = "12月";
+
+// MARK: - Vacation/Leave Management
+"vacation_settings" = "排休設定";
+"vacation_published" = "已開放";
+"vacation_not_published" = "未開放";
+"vacation_limit_monthly" = "月限制";
+"vacation_limit_weekly" = "周限制";
+"vacation_limit_flexible" = "彈性限制";
+"vacation_status_pending" = "待審核";
+"vacation_status_approved" = "已核准";
+"vacation_status_rejected" = "已拒絕";
+
+// MARK: - Attendance Status
+"attendance_normal" = "正常";
+"attendance_late" = "遲到";
+"attendance_overtime" = "加班";
+"attendance_leave" = "請假";
+"attendance_absent" = "缺勤";
+
+// MARK: - UI Elements
+"toast_success" = "成功";
+"toast_error" = "錯誤";
+"toast_info" = "信息";
+"toast_warning" = "警告";
+
+// MARK: - Tabs
+"tab_calendar" = "排班";
+"tab_reports" = "報表";
+"tab_timetracker" = "打卡";
+"tab_more" = "更多";
+"tab_dashboard" = "總覽";
+"tab_employees" = "員工";
+"tab_schedules" = "班表";
+"tab_analytics" = "分析";
+
+// MARK: - Theme Options
+"theme_automatic" = "自動";
+"theme_light" = "淺色模式";
+"theme_dark" = "深色模式";
+"theme_follow_system" = "跟隨系統";
+
+// MARK: - Time Tracking
+"time_tracking_not_started" = "未開始";
+"time_tracking_working" = "工作中";
+"time_tracking_on_break" = "休息中";
+"time_tracking_finished" = "已完成";
+
+// MARK: - Payroll
+"payroll_total_earnings" = "總收入";
+"payroll_base_pay" = "基本薪資";
+"payroll_overtime_pay" = "加班費";
+"payroll_allowance" = "津貼補助";
+"payroll_deductions" = "扣除項目";
+"payroll_net_pay" = "實領薪資";
+
+// MARK: - Validation Messages
+"validation_required_field" = "此字段為必填項";
+"validation_invalid_email" = "請輸入有效的電子郵件地址";
+"validation_password_too_weak" = "密碼必須至少6個字符";
+"validation_passwords_dont_match" = "密碼不匹配";
+"validation_monthly_limit_exceeded" = "超過月排休上限！目前選擇 %d 天，上限為 %d 天";
+"validation_weekly_limit_exceeded" = "第 %d 周超過排休上限！目前選擇 %d 天，上限為 %d 天";

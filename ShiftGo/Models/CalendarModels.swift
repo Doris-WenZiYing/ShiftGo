@@ -8,19 +8,12 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Week Enumeration
 public enum Week: Int, CaseIterable {
-    case sun = 0
-    case mon = 1
-    case tue = 2
-    case wed = 3
-    case thu = 4
-    case fri = 5
-    case sat = 6
+    case sun = 0, mon = 1, tue = 2, wed = 3, thu = 4, fri = 5, sat = 6
 
     public var shortString: String {
-        get {
-            return DateFormatter().shortWeekdaySymbols[self.rawValue]
-        }
+        DateFormatter().shortWeekdaySymbols[self.rawValue]
     }
 
     public func shortString(locale: Locale) -> String {
@@ -28,19 +21,38 @@ public enum Week: Int, CaseIterable {
         formatter.locale = locale
         return formatter.shortWeekdaySymbols[self.rawValue]
     }
+
+    public var localizedShortName: String {
+        switch self {
+        case .sun: return "calendar_sunday".localized
+        case .mon: return "calendar_monday".localized
+        case .tue: return "calendar_tuesday".localized
+        case .wed: return "calendar_wednesday".localized
+        case .thu: return "calendar_thursday".localized
+        case .fri: return "calendar_friday".localized
+        case .sat: return "calendar_saturday".localized
+        }
+    }
+
+    public var isWeekend: Bool {
+        return self == .sun || self == .sat
+    }
 }
 
+// MARK: - Orientation
 public enum Orientation {
     case horizontal
     case vertical
 }
 
+// MARK: - Header Size
 public enum HeaderSize {
     case zero
     case ratio
     case fixHeight(CGFloat)
 }
 
+// MARK: - Year Month Structure
 public struct YearMonth: Equatable, Hashable {
     public let year: Int
     public let month: Int
@@ -51,10 +63,11 @@ public struct YearMonth: Equatable, Hashable {
     }
 
     public static var current: YearMonth {
-        get {
-            let today = Date()
-            return YearMonth(year: Calendar.current.component(.year, from: today), month: Calendar.current.component(.month, from: today))
-        }
+        let today = Date()
+        return YearMonth(
+            year: Calendar.current.component(.year, from: today),
+            month: Calendar.current.component(.month, from: today)
+        )
     }
 
     public static func ==(lhs: Self, rhs: Self) -> Bool {
@@ -62,29 +75,46 @@ public struct YearMonth: Equatable, Hashable {
     }
 
     public var monthShortString: String {
-        get {
-            var components = toDateComponents()
-            components.day = 1
-            components.hour = 0
-            components.minute = 0
-            components.second = 0
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM"
-            return formatter.string(from: Calendar.current.date(from: components)!)
-        }
+        var components = toDateComponents()
+        components.day = 1
+        components.hour = 0
+        components.minute = 0
+        components.second = 0
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        return formatter.string(from: Calendar.current.date(from: components)!)
     }
+
     public var monthString: String {
-        get {
-            var components = toDateComponents()
-            components.day = 1
-            components.hour = 0
-            components.minute = 0
-            components.second = 0
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMMM"
-            return formatter.string(from: Calendar.current.date(from: components)!)
+        var components = toDateComponents()
+        components.day = 1
+        components.hour = 0
+        components.minute = 0
+        components.second = 0
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM"
+        return formatter.string(from: Calendar.current.date(from: components)!)
+    }
+
+    public var localizedMonthString: String {
+        switch month {
+        case 1: return "month_january".localized
+        case 2: return "month_february".localized
+        case 3: return "month_march".localized
+        case 4: return "month_april".localized
+        case 5: return "month_may".localized
+        case 6: return "month_june".localized
+        case 7: return "month_july".localized
+        case 8: return "month_august".localized
+        case 9: return "month_september".localized
+        case 10: return "month_october".localized
+        case 11: return "month_november".localized
+        case 12: return "month_december".localized
+        default: return "\(month)"
         }
     }
+
+    // ... (rest of the YearMonth implementation remains the same)
 
     public func addMonth(value: Int) -> YearMonth {
         let gregorianCalendar = NSCalendar(calendarIdentifier: .gregorian)!
@@ -94,7 +124,10 @@ public struct YearMonth: Equatable, Hashable {
         components.month = value
 
         let addedDate = Calendar.current.date(byAdding: components, to: gregorianCalendar.date(from: toDate)!)!
-        let ret = YearMonth(year: Calendar.current.component(.year, from: addedDate), month: Calendar.current.component(.month, from: addedDate))
+        let ret = YearMonth(
+            year: Calendar.current.component(.year, from: addedDate),
+            month: Calendar.current.component(.month, from: addedDate)
+        )
         return ret
     }
 
@@ -131,7 +164,7 @@ public struct YearMonth: Equatable, Hashable {
         toDateComponent.month = self.month
         toDateComponent.day = 1
         let toDate = gregorianCalendar.date(from: toDateComponent)!
-        let weekday = Calendar.current.component(.weekday, from: toDate) // 1Sun, 2Mon, 3Tue, 4Wed, 5Thu, 6Fri, 7Sat
+        let weekday = Calendar.current.component(.weekday, from: toDate)
         var components = DateComponents()
         components.day = cellIndex - weekday + (!startWithMonday ? 1 : weekday == 1 ? (-5) : 2)
         let addedDate = Calendar.current.date(byAdding: components, to: toDate)!
@@ -144,6 +177,7 @@ public struct YearMonth: Equatable, Hashable {
     }
 }
 
+// MARK: - Year Month Day Structure
 public struct YearMonthDay: Equatable, Hashable {
     public let year: Int
     public let month: Int
@@ -165,14 +199,12 @@ public struct YearMonthDay: Equatable, Hashable {
     }
 
     public static var current: YearMonthDay {
-        get {
-            let today = Date()
-            return YearMonthDay(
-                year: Calendar.current.component(.year, from: today),
-                month: Calendar.current.component(.month, from: today),
-                day: Calendar.current.component(.day, from: today)
-            )
-        }
+        let today = Date()
+        return YearMonthDay(
+            year: Calendar.current.component(.year, from: today),
+            month: Calendar.current.component(.month, from: today),
+            day: Calendar.current.component(.day, from: today)
+        )
     }
 
     public static func ==(lhs: Self, rhs: Self) -> Bool {
@@ -195,6 +227,10 @@ public struct YearMonthDay: Equatable, Hashable {
     public var date: Date? {
         let gregorianCalendar = NSCalendar(calendarIdentifier: .gregorian)!
         return gregorianCalendar.date(from: self.toDateComponents())
+    }
+
+    public var formattedString: String {
+        return String(format: "%04d-%02d-%02d", year, month, day)
     }
 
     public func toDateComponents() -> DateComponents {
@@ -230,7 +266,7 @@ public struct YearMonthDay: Equatable, Hashable {
         new.hour = 0
         new.minute = 0
         new.second = 0
-        return Calendar.current.dateComponents([.day], from: Calendar.current.date(from: origin)!, to: Calendar.current.date(from: new)!).month!
+        return Calendar.current.dateComponents([.day], from: Calendar.current.date(from: origin)!, to: Calendar.current.date(from: new)!).day!
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -240,3 +276,10 @@ public struct YearMonthDay: Equatable, Hashable {
     }
 }
 
+// MARK: - Calendar Constants
+public struct CalendarConstants {
+    public static let MAX_PAGE = 100
+    public static let CENTER_PAGE = 50
+    public static let COLUMN_COUNT = 7
+    public static let ROW_COUNT = 6
+}

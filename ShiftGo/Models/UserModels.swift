@@ -8,22 +8,22 @@
 import Foundation
 import SwiftUI
 
-// MARK: - 用戶角色
+// MARK: - User Role
 enum UserRole: String, CaseIterable, Codable {
     case employee = "employee"
     case boss = "boss"
 
     var displayName: String {
         switch self {
-        case .employee: return "Employee"
-        case .boss: return "Boss"
+        case .employee: return "role_employee".localized
+        case .boss: return "role_boss".localized
         }
     }
 
-    var localizedName: String {
+    var localizedDescription: String {
         switch self {
-        case .employee: return "員工"
-        case .boss: return "主管"
+        case .employee: return "role_employee_description".localized
+        case .boss: return "role_boss_description".localized
         }
     }
 
@@ -42,15 +42,15 @@ enum UserRole: String, CaseIterable, Codable {
     }
 }
 
-// MARK: - 員工類型
+// MARK: - Employment Type
 enum EmploymentType: String, CaseIterable, Codable {
     case fullTime = "full_time"
     case partTime = "part_time"
 
     var displayName: String {
         switch self {
-        case .fullTime: return "正職"
-        case .partTime: return "兼職"
+        case .fullTime: return "employment_full_time".localized
+        case .partTime: return "employment_part_time".localized
         }
     }
 
@@ -62,7 +62,7 @@ enum EmploymentType: String, CaseIterable, Codable {
     }
 }
 
-// MARK: - 用戶狀態
+// MARK: - User Status
 enum UserStatus: String, CaseIterable, Codable {
     case active = "active"
     case inactive = "inactive"
@@ -71,10 +71,10 @@ enum UserStatus: String, CaseIterable, Codable {
 
     var displayName: String {
         switch self {
-        case .active: return "活躍"
-        case .inactive: return "停用"
-        case .pending: return "待驗證"
-        case .suspended: return "暫停"
+        case .active: return "status_active".localized
+        case .inactive: return "status_inactive".localized
+        case .pending: return "status_pending".localized
+        case .suspended: return "status_suspended".localized
         }
     }
 
@@ -88,7 +88,7 @@ enum UserStatus: String, CaseIterable, Codable {
     }
 }
 
-// MARK: - 用戶權限
+// MARK: - User Permissions
 struct UserPermission: OptionSet, Codable {
     let rawValue: Int
 
@@ -103,7 +103,7 @@ struct UserPermission: OptionSet, Codable {
     static let bossDefault: UserPermission = [.viewSchedule, .requestVacation, .manageEmployees, .generateSchedule, .viewReports, .manageCompany]
 }
 
-// MARK: - 用戶資料更新結構
+// MARK: - Employee Update Data
 struct EmployeeUpdateData {
     let name: String?
     let hourlyRate: Double?
@@ -121,7 +121,7 @@ struct EmployeeUpdateData {
     }
 }
 
-// MARK: - 用戶統計
+// MARK: - User Statistics
 struct UserStatistics {
     let totalUsers: Int
     let activeUsers: Int

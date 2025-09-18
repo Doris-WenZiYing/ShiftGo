@@ -339,35 +339,6 @@ struct CompanyStats {
     }
 }
 
-// MARK: - 員工更新資料結構
-struct EmployeeUpdateData {
-    let name: String?
-    let hourlyRate: Double?
-    let employmentType: EmploymentType?
-    let isActive: Bool?
-
-    init(name: String? = nil, hourlyRate: Double? = nil, employmentType: EmploymentType? = nil, isActive: Bool? = nil) {
-        self.name = name
-        self.hourlyRate = hourlyRate
-        self.employmentType = employmentType
-        self.isActive = isActive
-    }
-}
-
-// MARK: - 員工類型枚舉
-enum EmploymentType: String, CaseIterable {
-    case fullTime = "full_time"
-    case partTime = "part_time"
-
-    var displayName: String {
-        switch self {
-        case .fullTime:
-            return "正職"
-        case .partTime:
-            return "兼職"
-        }
-    }
-}
 
 // MARK: - 轉換擴展
 extension FirebaseVacationRequest {
